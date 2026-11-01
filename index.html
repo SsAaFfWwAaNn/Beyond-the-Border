@@ -34,8 +34,26 @@ button.alt:hover{background:rgba(24,35,34,.12)}
 .card{background:var(--rose);color:var(--ink);padding:22px 26px;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 .card h2{margin:0 0 4px;font-size:1.8rem;letter-spacing:.12em}
 .card small{color:var(--ink)}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;background:#ac8279;filter:blur(7px) saturate(.8) brightness(.8);transform:scale(1.06)}
+#wrap{z-index:1;box-shadow:0 24px 80px rgba(10,14,18,.55),0 0 0 1px rgba(236,217,208,.14)}
+.side{display:none;position:fixed;top:0;bottom:0;width:calc(var(--m,0px) - 64px);z-index:1;align-items:center;justify-content:center;pointer-events:none}
+.side.l{left:32px}.side.r{right:32px}
+.wide .side{display:flex}
+.pan{width:100%;max-width:300px;box-sizing:border-box;padding:22px 24px;border-radius:8px;background:rgba(24,35,34,.58);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--cream);border:1px solid rgba(236,217,208,.18)}
+.word{font-size:clamp(2.2rem,4.2vw,4rem);font-weight:700;letter-spacing:.06em;line-height:.95}
+.bn{margin:10px 0 14px;font-size:1.2rem;opacity:.9}
+.pan p{margin:0 0 18px;font-size:.9rem;line-height:1.6;opacity:.85}
+.stat{border-top:1px solid rgba(236,217,208,.2);padding-top:12px;display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:.72rem;letter-spacing:.12em;opacity:.7}
+.stat b{font-size:2rem}
+.pan h3{margin:0 0 14px;font-size:.8rem;letter-spacing:.16em;opacity:.75}
+.row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-size:.85rem}
+kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 4px 4px 0;border-radius:4px;border:1px solid rgba(236,217,208,.4);border-bottom-width:3px;background:rgba(236,217,208,.08);font:600 .78rem 'Hind Siliguri',system-ui,sans-serif;text-align:center;box-sizing:border-box}
 </style></head>
 <body>
+<canvas id="bg"></canvas>
+<aside class="side l"><div class="pan"><div class="word">SKY<br>DUEL</div><div class="bn">সীমানার বাইরে</div><p>A two-sided dogfight over contested skies.</p><div class="stat"><span>BEST MISSION SCORE</span><b id="bestv">0</b></div></div></aside>
+<aside class="side r"><div class="pan"><h3>CONTROLS</h3><div class="row"><span>Bottom jet</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>Space</kbd></span></div><div class="row"><span>Top jet</span><span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd><kbd>Enter</kbd></span></div><div class="row"><span>Pause</span><span><kbd>Esc</kbd><kbd>P</kbd></span></div></div></aside>
 <div id="wrap">
 <canvas id="c" width="480" height="720"></canvas>
 <button id="pbtn" aria-label="Pause"><i></i><i></i></button>
@@ -231,7 +249,7 @@ function step(){
     }
   }
 }
-function endMenu(){state='menu';paused=false;pbtn.classList.remove('show');menu.classList.remove('hide')}
+function endMenu(){state='menu';paused=false;bestv.textContent=best;pbtn.classList.remove('show');menu.classList.remove('hide')}
 // ---------- terrain: rose ocean gulf between grey desert coasts ----------
 const vn=(y,s)=>{const g=y/26,i=Math.floor(g),f=g-i,u=f*f*(3-2*f);return hs(i,s)*(1-u)+hs(i+1,s)*u};
 const NY=Math.ceil((H+16)/6)+1,LC=new Array(NY),RC=new Array(NY);
@@ -319,6 +337,35 @@ function draw(){
     if(rb>0){txt('ROUND '+(score[0]+score[1]+1),W/2,H/2-40,34,C.cream);txt('FIRST TO '+winAt()+' WINS',W/2,H/2-8,15,C.cream)}
     if(state=='between'){const bw=!P[1].alive;txt(mode=='cpu'?(bw?'ROUND WON':'ROUND LOST'):(bw?'BOTTOM JET SCORES':'TOP JET SCORES'),W/2,H/2,32,C.cream)}
   }
+}
+// ---------- full-screen backdrop for wide (PC) screens ----------
+const bg=document.getElementById('bg'),bx=bg.getContext('2d'),wrapEl=document.getElementById('wrap'),bestv=document.getElementById('bestv');
+let bw=0,bh=0,bgOn=false,gBgW,gBgL;
+function fit(){
+  const d=Math.min(2,devicePixelRatio||1);bw=innerWidth;bh=innerHeight;bg.width=bw*d;bg.height=bh*d;bx.setTransform(d,0,0,d,0,0);
+  const m=Math.max(0,(bw-wrapEl.getBoundingClientRect().width)/2);
+  document.documentElement.style.setProperty('--m',m+'px');document.body.classList.toggle('wide',m>=250);bgOn=m>=12;
+  gBgW=bx.createLinearGradient(0,0,0,bh);gBgW.addColorStop(0,'#b78f85');gBgW.addColorStop(1,'#ac8279');
+  gBgL=bx.createLinearGradient(0,0,bw,0);gBgL.addColorStop(0,'#434b54');gBgL.addColorStop(.22,'#5b636c');gBgL.addColorStop(.78,'#5b636c');gBgL.addColorStop(1,'#434b54');
+}
+addEventListener('resize',()=>{fit();drawBg()});fit();drawBg();bestv.textContent=best;
+function drawBg(){
+  const w=bw,h=bh,sc=h/H,sv=420,N=Math.ceil(h/6)+2;
+  bx.fillStyle=gBgW;bx.fillRect(0,0,w,h);bx.lineCap='round';
+  
+  bx.fillStyle=gBgL;
+  for(const s of[0,1]){   // grey desert coasts at both screen edges
+    bx.beginPath();bx.moveTo(s?w+10:-10,-8);
+    for(let k=0;k<N;k++){
+      const y=-8+k*6,wy=sv-y/sc;
+      const e=s?w*.09+Math.sin(wy*.0042+2)*w*.035+Math.sin(wy*.012)*w*.012+vn(wy,8)*w*.012:w*.1+Math.sin(wy*.0035)*w*.05+Math.sin(wy*.009+1.3)*w*.02+vn(wy,3)*w*.015;
+      bx.lineTo(s?w-e:e,y);
+    }
+    bx.lineTo(s?w+10:-10,-8+(N-1)*6);bx.closePath();bx.fill();
+  }
+  bx.lineJoin='miter';
+  
+  const g=bx.createRadialGradient(w/2,h/2,h*.35,w/2,h/2,Math.max(w,h)*.75);g.addColorStop(0,'rgba(20,14,16,.25)');g.addColorStop(1,'rgba(14,10,12,.62)');bx.fillStyle=g;bx.fillRect(0,0,w,h);
 }
 let last=performance.now(),acc=0;
 let alpha=0;
