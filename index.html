@@ -22,33 +22,48 @@ h1{margin:0;font-size:3.2rem;font-weight:700;letter-spacing:.04em;line-height:1}
 button{font:inherit;font-weight:600;letter-spacing:.05em;padding:11px 22px;border-radius:3px;border:0;cursor:pointer;color:var(--cream);background:var(--ink);min-width:250px;transition:background .15s}
 button:hover{background:#2c3a3b}
 small{color:var(--cream);opacity:.9;line-height:1.6;font-size:.8rem}
+button:active{transform:scale(.98)}
+button.alt{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+button.alt:hover{background:rgba(24,35,34,.12)}
+#pbtn{position:absolute;top:10px;right:10px;width:44px;height:44px;min-width:0;padding:0;display:none;align-items:center;justify-content:center;gap:5px;background:rgba(24,35,34,.62);border:1px solid rgba(236,217,208,.35);border-radius:6px;touch-action:manipulation}
+#pbtn.show{display:flex}
+#pbtn:hover{background:rgba(24,35,34,.82)}
+#pbtn i{display:block;width:4px;height:16px;background:var(--cream);border-radius:1px}
+#pause{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,20,22,.6)}
+#pause.show{display:flex}
+.card{background:var(--rose);color:var(--ink);padding:22px 26px;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.card h2{margin:0 0 4px;font-size:1.8rem;letter-spacing:.12em}
+.card small{color:var(--ink)}
 </style></head>
 <body>
 <div id="wrap">
 <canvas id="c" width="480" height="720"></canvas>
+<button id="pbtn" aria-label="Pause"><i></i><i></i></button>
+<div id="pause"><div class="card"><h2>PAUSED</h2><button id="presume">RESUME</button><button id="prestart">RESTART</button><button id="pquit" class="alt">MAIN MENU</button><small>Esc or P to resume</small></div></div>
 <div id="menu">
-<div class="tag">A two-sided dogfight over contested skies.<br>Arena PvP · endless PvE.</div>
+<div class="tag">A two-sided dogfight over contested skies.<br>Arena duels · endless swarm missions.</div>
 <div id="mid">
 <h1>SKY DUEL</h1>
 <div class="sub">সীমানার বাইরে</div>
 <div id="msg">Choose your sortie</div>
 <button id="b0">MISSION · ENDLESS SWARM</button>
-<button id="b1">PVP · VS CPU</button>
-<button id="b2">PVP · 2 PLAYERS</button>
+<button id="b1">PLAYER VS BOT</button>
+<button id="b2">PLAYER VS PLAYER</button>
 </div>
-<small><b>P1</b> WASD + Space &nbsp;·&nbsp; <b>P2</b> Arrows + Enter<br>Mission and CPU also accept arrows + Space/Enter/Z<br>Touch: drag anywhere, your jet glides with your finger and auto-fires</small>
+<small><b>Bottom jet</b> WASD + Space &nbsp;·&nbsp; <b>Top jet</b> Arrows + Enter<br>Mission and bot matches also accept arrows + Space/Enter/Z<br>Touch: drag anywhere to steer, your jet auto-fires<br>Pause: Esc or the pause button</small>
 </div></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=480,H=720,DT=1/60;
 const menu=document.getElementById('menu'),msg=document.getElementById('msg');
 const K={},ptr={x:0,y:0,on:false,touch:false,lx:0,ly:0,dx:0,dy:0,tx:0,ty:0,fresh:false},FONT="'Hind Siliguri',system-ui,sans-serif";
 const C={rose:'#b48c82',ink:'#182322',slate:'#343f49',grey:'#535962',cream:'#ecd9d0',ember:'#e9946a',brick:'#c4574a'};
-let mode='mission',state='menu',P=[],bul=[],en=[],parts=[],queue=[],score=[0,0],timer=0,tt=0,scroll=0,pts=0,best=0,seed=7,mt=0,sp=1;
+let paused=false,rb=0,mode='mission',state='menu',P=[],bul=[],en=[],parts=[],queue=[],score=[0,0],timer=0,tt=0,scroll=0,pts=0,best=0,seed=7,mt=0,sp=1;
 try{best=+localStorage.getItem('skyduelBest')||0}catch(e){}
 const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const hs=(a,b)=>{let h=Math.imul(a*374761393+b*668265263,1274126177);h^=h>>>13;h=Math.imul(h,1103515245);return((h^h>>>16)>>>0)/4294967296};
 const cl=v=>Math.max(-1,Math.min(1,v));
-addEventListener('keydown',e=>{K[e.code]=1;if(/Arrow|Space/.test(e.code))e.preventDefault()});
+const winAt=()=>3;
+addEventListener('keydown',e=>{K[e.code]=1;if(/Arrow|Space/.test(e.code))e.preventDefault();if((e.code=='Escape'||e.code=='KeyP')&&!e.repeat)togglePause()});
 addEventListener('keyup',e=>K[e.code]=0);
 function setp(e){const r=cv.getBoundingClientRect();ptr.x=(e.clientX-r.left)/r.width*W;ptr.y=(e.clientY-r.top)/r.height*H;ptr.touch=e.pointerType!='mouse'}
 cv.addEventListener('pointerdown',e=>{setp(e);ptr.lx=ptr.x;ptr.ly=ptr.y;ptr.dx=ptr.dy=0;ptr.fresh=true;ptr.on=true});
@@ -58,6 +73,19 @@ addEventListener('pointercancel',()=>ptr.on=false);
 document.getElementById('b0').onclick=()=>start('mission');
 document.getElementById('b1').onclick=()=>start('cpu');
 document.getElementById('b2').onclick=()=>start('2p');
+// ---------- pause ----------
+const $=id=>document.getElementById(id),pbtn=$('pbtn'),pmenu=$('pause');
+function setPause(v){
+  if(v&&!(state=='play'||state=='between'))return;
+  paused=v;pmenu.classList.toggle('show',v);ptr.on=false;ptr.dx=ptr.dy=0;
+}
+function togglePause(){setPause(!paused)}
+pbtn.onclick=()=>setPause(true);
+$('presume').onclick=()=>setPause(false);
+$('prestart').onclick=()=>{setPause(false);start(mode)};
+$('pquit').onclick=()=>{setPause(false);msg.textContent='Choose your sortie';endMenu()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
+addEventListener('blur',()=>setPause(true));
 // ---------- sharp MiG-29 style silhouette (top-down) ----------
 function sym(h){const p=new Path2D();p.moveTo(h[0][0],h[0][1]);for(let i=1;i<h.length;i++)p.lineTo(h[i][0],h[i][1]);for(let i=h.length-1;i>=1;i--)p.lineTo(-h[i][0],h[i][1]);p.closePath();return p}
 function pair(h){const p=new Path2D();for(const s of[1,-1]){p.moveTo(h[0][0]*s,h[0][1]);for(const q of h.slice(1))p.lineTo(q[0]*s,q[1]);p.closePath()}return p}
@@ -92,8 +120,8 @@ function jet(x,y,dir,pal){
 }
 // ---------- game ----------
 function mk(i){return{i,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;state='play'}
-function start(m){mode=m;if(m!='mission')score=[0,0];menu.classList.add('hide');reset()}
+function reset(){seed=12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;rb=mode=='mission'?0:1.4;state='play'}
+function start(m){mode=m;score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 function fire(p){if(p.cd>0)return;p.cd=.22;bul.push({x:p.x,y:p.y+p.dir*36,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}
 function ai(p){
@@ -168,10 +196,12 @@ function mission(){
 }
 function step(){
   for(const o of P)o.px=o.x,o.py=o.y;for(const o of en)o.px=o.x,o.py=o.y;for(const o of bul)o.px=o.x,o.py=o.y;
+  if(paused)return;
   tt+=DT;scroll+=(state=='menu'?50:90)*DT;
   for(const q of parts){q.x+=q.vx*DT;q.y+=q.vy*DT;q.l-=DT}
   parts=parts.filter(q=>q.l>0);
   if(state=='menu')return;
+  if(state=='play'&&rb>0){rb-=DT;ptr.dx=ptr.dy=0;return}
   if(state=='play'){
     for(const p of P){if(!p.alive)continue;p.cd-=DT;if(control(p))fire(p)}
     if(mode=='mission')mission();
@@ -195,13 +225,13 @@ function step(){
     timer-=DT;
     if(timer<=0){
       if(mode=='mission'){msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
-      else if(score[0]>=2||score[1]>=2){
-        msg.textContent=(score[0]>=2?'P1 wins the match!':(mode=='cpu'?'CPU wins the match!':'P2 wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
+      else if(score[0]>=winAt()||score[1]>=winAt()){
+        msg.textContent=(score[0]>score[1]?(mode=='cpu'?'You win the match!':'Bottom jet wins the match!'):(mode=='cpu'?'The bot wins the match.':'Top jet wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
       }else reset();
     }
   }
 }
-function endMenu(){state='menu';menu.classList.remove('hide')}
+function endMenu(){state='menu';paused=false;pbtn.classList.remove('show');menu.classList.remove('hide')}
 // ---------- terrain: rose ocean gulf between grey desert coasts ----------
 const vn=(y,s)=>{const g=y/26,i=Math.floor(g),f=g-i,u=f*f*(3-2*f);return hs(i,s)*(1-u)+hs(i+1,s)*u};
 const NY=Math.ceil((H+16)/6)+1,LC=new Array(NY),RC=new Array(NY);
@@ -244,10 +274,11 @@ function terrain(){
   ctx.fillStyle=gVg;ctx.fillRect(0,0,W,H);
 }
 // ---------- HUD + draw ----------
+function pips(n,y,c){for(let i=0;i<winAt();i++){ctx.beginPath();ctx.arc(228+i*16,y+6,5,0,6.28);if(i<n){ctx.fillStyle=c;ctx.fill()}ctx.strokeStyle='rgba(236,217,208,.6)';ctx.lineWidth=1.4;ctx.stroke()}}
 function bar(p,y,label){
   ctx.fillStyle='rgba(24,35,34,.6)';ctx.fillRect(14,y,200,12);
-  ctx.fillStyle=p.c;ctx.fillRect(14,y,200*p.hp/100,12);
-  ctx.fillStyle=C.cream;ctx.font='600 12px '+FONT;ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(label,222,y+6);
+  ctx.fillStyle=p.hp<30?C.brick:p.c;ctx.fillRect(14,y,200*p.hp/100,12);ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(14.5,y+.5,199,11);
+  if(label){ctx.font='700 10px '+FONT;ctx.textBaseline='middle';ctx.textAlign='left';ctx.strokeStyle='rgba(24,35,34,.7)';ctx.lineWidth=3;ctx.strokeText(label,20,y+6.5);ctx.fillStyle=C.cream;ctx.fillText(label,20,y+6.5)}
 }
 function txt(s,x,y,sz,c,al){ctx.textAlign=al||'center';ctx.textBaseline='middle';ctx.font='700 '+sz+'px '+FONT;ctx.lineWidth=4;ctx.strokeStyle='rgba(24,35,34,.55)';ctx.strokeText(s,x,y);ctx.fillStyle=c;ctx.fillText(s,x,y)}
 // smoky ash trail: long, thin, widening and fading with age
@@ -262,7 +293,7 @@ function trail(b){
   }
 }
 function draw(){
-  const sv=scroll;scroll+=(state=='menu'?50:90)*DT*alpha;terrain();scroll=sv;
+  const sv=scroll;if(!paused)scroll+=(state=='menu'?50:90)*DT*alpha;terrain();scroll=sv;
   for(const e of en){
     jet(ix(e,'x'),ix(e,'y'),1,PAL[e.ty]);
     if(e.hp<e.mhp){ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,e.y-44,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,e.y-44,36*e.hp/e.mhp,4)}
@@ -281,12 +312,12 @@ function draw(){
   if(!P.length)return;
   if(mode=='mission'){
     bar(P[0],H-22,'HP');txt('SCORE '+pts,14,24,17,C.cream,'left');
-    txt('TIME '+Math.floor(mt/60)+':'+String(Math.floor(mt%60)).padStart(2,'0'),W-14,24,17,C.cream,'right');
+    txt('TIME '+Math.floor(mt/60)+':'+String(Math.floor(mt%60)).padStart(2,'0'),W-62,24,17,C.cream,'right');
     if(state=='between')txt('MISSION FAILED',W/2,H/2,32,C.cream);
   }else{
-    bar(P[1],10,mode=='cpu'?'CPU':'P2');bar(P[0],H-22,'P1');
-    txt('P1 '+score[0]+' – '+score[1]+' '+(mode=='cpu'?'CPU':'P2'),W-14,H/2,17,C.cream,'right');
-    if(state=='between')txt(P[1].alive?'P1 scores!':'P2 scores!',W/2,H/2,34,C.cream);
+    bar(P[1],10,mode=='cpu'?'BOT':'');bar(P[0],H-22,'');pips(score[1],10,C.brick);pips(score[0],H-22,C.cream);
+    if(rb>0){txt('ROUND '+(score[0]+score[1]+1),W/2,H/2-40,34,C.cream);txt('FIRST TO '+winAt()+' WINS',W/2,H/2-8,15,C.cream)}
+    if(state=='between'){const bw=!P[1].alive;txt(mode=='cpu'?(bw?'ROUND WON':'ROUND LOST'):(bw?'BOTTOM JET SCORES':'TOP JET SCORES'),W/2,H/2,32,C.cream)}
   }
 }
 let last=performance.now(),acc=0;
