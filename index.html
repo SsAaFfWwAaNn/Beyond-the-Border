@@ -1040,13 +1040,14 @@ let SBC=null;
 function mkRoom(name,hot){
   return new Promise((resolve,reject)=>{
     const ch=SBC.channel(name,{config:{presence:{key:MYKEY},broadcast:{self:false}}});
-    const hotS={},jt={},subs=new Set(),mine={};let tracked='',ok=false,done=false;
+    const hotS={},seen={},subs=new Set(),mine={};let hbT=0;let tracked='',ok=false,done=false;
+    const fresh=(k,hb)=>{const o=seen[k];if(!o||o.hb!==hb){seen[k]={hb,at:Date.now()};return Date.now()}return o.at};   // updatedAt moves only while a peer's heartbeat keeps changing
     const build=()=>{
       const ps=ch.presenceState(),out=[];
       for(const k in ps){
         const {presence_ref,...m}=ps[k][ps[k].length-1]||{},h=hotS[k],me=k==MYKEY;
         out.push(Object.freeze({peer:k,by:null,isMe:me,sameTab:me,kind:'viewer',guest:false,
-          presence:Object.freeze(me?{...m,...mine}:{...m,...(h?h.s:{})}),updatedAt:h?h.at:(jt[k]=jt[k]||Date.now())}));
+          presence:Object.freeze(me?{...m,...mine}:{...m,...(h?h.s:{})}),updatedAt:h?h.at:fresh(k,m.hb)}));
       }
       return out;
     };
@@ -1055,11 +1056,12 @@ function mkRoom(name,hot){
       async presence(patch){
         for(const k in patch){if(patch[k]===null)delete mine[k];else mine[k]=patch[k]}
         if(!ok)return;
-        const slow=JSON.stringify([mine.n,mine.st,mine.off]);
-        if(slow!==tracked){tracked=slow;await ch.track({n:mine.n,st:mine.st,off:mine.off})}
+        const slow=JSON.stringify([mine.n,mine.st,mine.off,mine.hb]);
+        if(slow!==tracked){tracked=slow;await ch.track({n:mine.n,st:mine.st,off:mine.off,hb:mine.hb})}
         if(hot&&'x' in patch)ch.send({type:'broadcast',event:'p',payload:{k:MYKEY,s:mine}});
       },
-      async leave(){if(hot)try{ch.send({type:'broadcast',event:'bye',payload:{k:MYKEY}})}catch(e){}subs.clear();try{await SBC.removeChannel(ch)}catch(e){}}};
+      async leave(){if(hot)try{ch.send({type:'broadcast',event:'bye',payload:{k:MYKEY}})}catch(e){}clearInterval(hbT);subs.clear();try{await SBC.removeChannel(ch)}catch(e){}}};
+    if(!hot)hbT=setInterval(()=>{if(ok){mine.hb=(mine.hb||0)+1;room.presence({hb:mine.hb}).catch(()=>{})}},4000);   // lobby heartbeat: also re-announces us after a dropped connection
     ch.on('presence',{event:'sync'},()=>subs.forEach(f=>f()));
     ch.on('broadcast',{event:'p'},({payload})=>{if(payload&&payload.k)hotS[payload.k]={s:payload.s,at:Date.now()}});
     ch.on('broadcast',{event:'bye'},({payload})=>{if(payload&&payload.k){const h=hotS[payload.k];hotS[payload.k]={s:{...(h?h.s:{}),bye:1},at:Date.now()}}});
@@ -1077,7 +1079,7 @@ async function getRoom(){
 }
 // ---------- online 1v1 netcode ----------
 const net={on:false,room:null,opp:null,oname:'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0};
-let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,incoming=null,psig='';const dismissed={};
+let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,incoming=null,psig='';const dismissed={},bad={};
 const nm=$('nm'),ost=$('ostat'),onl=$('online'),AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const clean=s=>(s||'').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,14),myName=()=>clean(nm.value)||'Pilot';
 const rcode=n=>Array.from({length:n},()=>AL[Math.floor(Math.random()*AL.length)]).join(''),rname=c=>'g-'+c.toLowerCase();
@@ -1097,7 +1099,7 @@ async function openOnline(){
 }
 function lobbyTick(){
   if(!RM||!onl.classList.contains('show')||net.on)return;
-  const ps=RM.peers(),me=ps.find(p=>p.sameTab),others=ps.filter(p=>!p.isMe&&p.kind=='viewer'&&p.presence.n);
+  const ps=RM.peers(),me=ps.find(p=>p.sameTab),others=ps.filter(p=>!p.isMe&&p.kind=='viewer'&&p.presence.n&&Date.now()-p.updatedAt<12000);
   $('ocount').textContent=RM.connected()?(others.length+1)+' online':'connecting…';
   const sig=others.map(p=>p.peer+p.presence.n+p.presence.st).join('|')+lst+!!wait;
   if(sig!=psig){psig=sig;const pl=$('plist');pl.textContent='';
@@ -1112,9 +1114,9 @@ function lobbyTick(){
   if(lst=='queue'&&!wait){
     const off=others.find(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='mm');
     if(off)return acceptRoom(off.presence.off.code);
-    const q=[me,...others.filter(p=>p.presence.st=='queue')].sort((a,b)=>a.peer<b.peer?-1:1),i=q.indexOf(me);
+    const q=[me,...others.filter(p=>p.presence.st=='queue'&&!(bad[p.peer]&&Date.now()-bad[p.peer]<30000))].sort((a,b)=>a.peer<b.peer?-1:1),i=q.indexOf(me);
     ost.textContent='Searching for an opponent… '+(q.length-1)+' other pilot'+(q.length==2?'':'s')+' in queue';
-    if(i%2==0&&q[i+1]){const code=rcode(6);wait={code,kind:'mm',t:Date.now()};offer={to:q[i+1].peer,code,kind:'mm'};pushLobby();syncBtns();enterRoom(code).catch(()=>cancelWait('Could not open a match room.',1))}
+    if(i%2==0&&q[i+1]){const code=rcode(6);wait={code,kind:'mm',t:Date.now(),to:q[i+1].peer};offer={to:q[i+1].peer,code,kind:'mm'};pushLobby();syncBtns();enterRoom(code).catch(()=>cancelWait('Could not open a match room.',1))}
   }
 }
 async function enterRoom(code){
@@ -1122,7 +1124,7 @@ async function enterRoom(code){
   await oroom.presence({n:myName(),x:W/2,y:H-110,hp:100,rn:0,fc:0,fx:0,fy:0,t:0});
   if(!wt)wt=setInterval(roomCheck,250);
 }
-function acceptRoom(code){lst='busy';offer=null;wait={code,kind:'join',t:Date.now()};pushLobby();ost.textContent='Opponent found! Connecting…';syncBtns();enterRoom(code).catch(()=>cancelWait('Could not join the match room.'))}
+function acceptRoom(code){const rq=lst=='queue';lst='busy';offer=null;wait={code,kind:'join',t:Date.now(),rq};pushLobby();ost.textContent='Opponent found! Connecting…';syncBtns();enterRoom(code).catch(()=>cancelWait('Could not join the match room.'))}
 function challenge(p){
   if(!RM||wait||lst!='idle')return;
   const code=rcode(6);lst='busy';wait={code,kind:'ch',t:Date.now()};offer={to:p.peer,code,kind:'ch'};pushLobby();
@@ -1140,8 +1142,8 @@ function roomCheck(){
   const opp=pair.find(p=>!p.sameTab);
   if(opp&&opp.presence.n&&me&&me.presence.n)return beginMatch(opp);
   if(wait.kind=='join'&&!wait.rt&&Date.now()-wait.t>8000){wait.rt=1;const c=wait.code;try{oroom.leave()}catch(e){}oroom=null;enterRoom(c).catch(()=>cancelWait('Could not join that room.'));return}
-  const lim={mm:9000,ch:30000,join:20000,inv:1e9}[wait.kind];
-  if(Date.now()-wait.t>lim)cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'?'Could not find that match. Ask your friend to keep their invite screen open.':undefined,wait.kind=='mm');
+  const lim={mm:12000,ch:30000,join:wait.rq?12000:20000,inv:1e9}[wait.kind];
+  if(Date.now()-wait.t>lim){if(wait.kind=='mm'&&wait.to)bad[wait.to]=Date.now();cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'&&!wait.rq?'Could not find that match. Ask your friend to keep their invite screen open.':undefined,wait.kind=='mm'||!!wait.rq)}
 }
 function beginMatch(opp){
   clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
@@ -1191,7 +1193,9 @@ $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();i
   if(!p){ost.textContent='No pilot named “'+raw+'” is online right now. Use the invite link instead.';return}
   if(p.presence.st!='idle'&&p.presence.st!='queue'){ost.textContent=clean(p.presence.n)+' is busy in a match.';return}
   challenge(p)};
-addEventListener('pagehide',()=>{if(net.on)netLeave()});
+addEventListener('pagehide',()=>{if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
+addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
+setInterval(()=>{if(onl.classList.contains('show'))lobbyTick()},2000);
 (()=>{const c=(new URLSearchParams(location.search).get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');   // friend opened an invite link
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
 $('cacc').onclick=()=>{const c=incoming;$('chal').classList.remove('show');if(c){if(lst=='queue'){lst='idle'}acceptRoom(c)}};
