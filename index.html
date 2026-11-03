@@ -155,7 +155,7 @@ pbtn.onclick=()=>setPause(true);
 $('presume').onclick=()=>setPause(false);
 $('prestart').onclick=()=>{setPause(false);start(mode)};
 $('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on)netLeave();endMenu();if(on)openOnline()};
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode!='online')setPause(true)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode!='online')setPause(true);if(!document.hidden&&wait&&oroom)try{roomCheck()}catch(e){}});
 addEventListener('blur',()=>{if(mode!='online')setPause(true)});
 // ---------- sharp MiG-29 style silhouette (top-down) ----------
 function sym(h){const p=new Path2D();p.moveTo(h[0][0],h[0][1]);for(let i=1;i<h.length;i++)p.lineTo(h[i][0],h[i][1]);for(let i=h.length-1;i>=1;i--)p.lineTo(-h[i][0],h[i][1]);p.closePath();return p}
@@ -1079,7 +1079,7 @@ async function mkRoom(name,hot){
       async leave(){if(hot)try{ch.send({type:'broadcast',event:'bye',payload:{k:MYKEY}})}catch(e){}clearInterval(hbT);subs.clear();try{await SBC.removeChannel(ch)}catch(e){}}};
     if(!hot)hbT=setInterval(()=>{if(ok){mine.hb=(mine.hb||0)+1;room.presence({hb:mine.hb}).catch(()=>{})}},4000);   // lobby heartbeat: also re-announces us after a dropped connection
     ch.on('presence',{event:'sync'},()=>subs.forEach(f=>f()));
-    ch.on('broadcast',{event:'p'},({payload})=>{if(payload&&payload.k)hotS[payload.k]={s:payload.s,at:Date.now()}});
+    ch.on('broadcast',{event:'p'},({payload})=>{if(payload&&payload.k){hotS[payload.k]={s:payload.s,at:Date.now()};if(room.hook)try{room.hook()}catch(e){}}});
     ch.on('broadcast',{event:'bye'},({payload})=>{if(payload&&payload.k){const h=hotS[payload.k];hotS[payload.k]={s:{...(h?h.s:{}),bye:1},at:Date.now()}}});
     const fail=e=>{if(done)return;done=true;clearTimeout(to);clearInterval(hbT);try{SBC.removeChannel(ch)}catch(x){}reject(new Error(e))};   // never leave a half-open channel behind
     const to=setTimeout(()=>fail('timeout'),12000);
@@ -1175,7 +1175,7 @@ async function acceptInv(v){
 async function enterRoom(code){
   const w=wait,r=await RM.join(rname(code));
   if(wait!==w){try{await r.leave()}catch(e){}return}   // cancelled or superseded while joining: do not leak the room
-  oroom=r;
+  oroom=r;r.hook=()=>{if(oroom===r&&wait)roomCheck()};   // react to the other pilot's heartbeat immediately
   await r.presence({n:myName(),x:W/2,y:H-110,hp:100,rn:0,fc:0,fx:0,fy:0,t:0});
   if(!wt)wt=setInterval(roomCheck,250);
 }
@@ -1195,18 +1195,19 @@ function startQueue(){
 function queueCheck(){   // roster comes only from heartbeats we actually receive; each heartbeat lists who the sender hears and who it has chosen ("to")
   const w=wait,now=Date.now();
   if(!oroom.connected()){if(!w.dc)w.dc=now;if(now-w.dc>6000)return cancelWait('Connection lost. Searching again…',1)}else w.dc=0;
-  const heard=oroom.peers().filter(p=>!p.sameTab&&p.presence.n&&typeof p.presence.x=='number'&&!p.presence.bye&&now-p.updatedAt<3500);
+  const heard=oroom.peers().filter(p=>!p.sameTab&&p.presence.n&&typeof p.presence.x=='number'&&!p.presence.bye&&now-p.updatedAt<9000);
   const mutual=heard.filter(p=>Array.isArray(p.presence.seen)&&p.presence.seen.includes(MYKEY));
   const live=[MYKEY,...mutual.map(p=>p.peer)].sort(),i=live.indexOf(MYKEY),part=live[i%2?i-1:i+1];
   ost.textContent='Searching for an opponent… '+heard.length+' other pilot'+(heard.length==1?'':'s')+' waiting'+(heard.length>mutual.length?' (connecting…)':'');
   const sig=part?[MYKEY,part].sort().join(''):'';
   if(sig!==w.sig){w.sig=sig;w.sigT=now}
   w.to=sig&&now-w.sigT>=900?part:null;   // step 1: the same pair has held steady, so announce our choice
-  if(++w.hb%2==0)oroom.presence({x:W/2,t:w.hb,seen:heard.map(p=>p.peer),to:w.to}).catch(()=>{});
+  if(now-(w.lh||0)>=400){w.lh=now;oroom.presence({x:W/2,t:++w.hb,seen:heard.map(p=>p.peer),to:w.to}).catch(()=>{})}
   const pp=w.to&&mutual.find(p=>p.peer===part);
   if(!pp||pp.presence.to!==MYKEY)return;   // step 2: commit only once the other pilot has chosen us too
   const a=[MYKEY,part].sort(),code='PM'+a[0].slice(1)+a[1].slice(1),old=oroom;   // both sides derive the same private room name
-  let n=0;const iv=setInterval(()=>{if(++n>6){clearInterval(iv);old.leave().catch(()=>{});return}old.presence({x:W/2,t:++w.hb,seen:[part],to:part}).catch(()=>{})},500);   // keep announcing for a few seconds so the other side is sure to see our choice
+  let lh=0;const beat=()=>{const t=Date.now();if(t-lh>=400){lh=t;old.presence({x:W/2,t:++w.hb,seen:[part],to:part}).catch(()=>{})}};
+  old.hook=beat;beat();const iv=setInterval(beat,500);setTimeout(()=>{clearInterval(iv);old.hook=null;old.leave().catch(()=>{})},4000);   // keep announcing for a few seconds so the other side is sure to see our choice
   oroom=null;wait={code,kind:'join',t:now,rq:1,from:part,hb:0};ost.textContent='Opponent found! Connecting…';
   const nw=wait;(async()=>{if(wait!==nw)return;try{await enterRoom(code)}catch(e){if(wait===nw)cancelWait('Could not connect to the opponent. Searching again…',1)}})();
 }
@@ -1218,7 +1219,7 @@ function cancelWait(text,requeue){
 function roomCheck(){
   if(!wait||!oroom)return;
   if(wait.kind=='q')return queueCheck();
-  wait.hb=(wait.hb||0)+1;if(wait.hb%2==0)oroom.presence({x:W/2,t:wait.hb}).catch(()=>{});
+  if(Date.now()-(wait.lh||0)>=400){wait.lh=Date.now();wait.hb=(wait.hb||0)+1;oroom.presence({x:W/2,t:wait.hb}).catch(()=>{})}
   const ps=oroom.peers().filter(p=>p.kind=='viewer'&&(p.sameTab||!p.isMe)),me=ps.find(p=>p.sameTab),pair=ps.slice().sort((a,b)=>a.peer<b.peer?-1:1).slice(0,2);
   if(me&&pair.length==2&&!pair.includes(me))return cancelWait('That room is full.');
   const opp=pair.find(p=>!p.sameTab);
