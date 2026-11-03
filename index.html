@@ -1075,11 +1075,11 @@ async function getRoom(){
   if(!window.supabase||!SUPABASE_URL)return null;
   if(!SBC)SBC=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:30}}});
   const lob=await mkRoom('lobby',false);
-  return{peers:lob.peers,onPeers:lob.onPeers,presence:lob.presence,connected:lob.connected,join:n=>mkRoom(n,true)};
+  return{peers:lob.peers,onPeers:lob.onPeers,presence:lob.presence,connected:lob.connected,close:lob.leave,join:n=>mkRoom(n,true)};
 }
 // ---------- online 1v1 netcode ----------
 const net={on:false,room:null,opp:null,oname:'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0};
-let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,incoming=null,psig='';const dismissed={},bad={};
+let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,needFresh=0,qs=0,incoming=null,psig='';const dismissed={},bad={};
 const nm=$('nm'),ost=$('ostat'),onl=$('online'),AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const clean=s=>(s||'').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,14),myName=()=>clean(nm.value)||'Pilot';
 const rcode=n=>Array.from({length:n},()=>AL[Math.floor(Math.random()*AL.length)]).join(''),rname=c=>'g-'+c.toLowerCase();
@@ -1091,10 +1091,11 @@ const pushLobby=()=>{if(RM)RM.presence({n:myName(),st:lst,off:offer||null})};
 function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'CANCEL SEARCH':'FIND A MATCH';$('ofind').disabled=b;$('oinv').textContent=b?'CANCEL':'INVITE A FRIEND';$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
 async function openOnline(){
   nm.onchange();menu.classList.add('hide');onl.classList.add('show');$('oname').textContent=myName();ost.textContent='';$('ocount').textContent='connecting…';$('plist').textContent='';psig='';
+  if(RM&&needFresh)await resetLobby();needFresh=0;psig='';for(const k in dismissed)delete dismissed[k];
   if(!RM){try{RM=await getRoom()}catch(e){RM=null}}
   if(!RM){ost.textContent='Online server not set up or unreachable. Check SUPABASE_URL and SUPABASE_KEY at the top of the script.';return}
   lst='idle';offer=null;wait=null;pushLobby();syncBtns();
-  if(!lobbyUn)lobbyUn=RM.onPeers(lobbyTick,e=>{ost.textContent='Lobby connection lost ('+e.code+'). Go back and try again.'});
+  subLobby();
   lobbyTick();
 }
 function lobbyTick(){
@@ -1150,7 +1151,7 @@ function beginMatch(opp){
   wait=null;lst='busy';offer=null;pushLobby();$('chal').classList.remove('show');onl.classList.remove('show');start('online');
 }
 function netLeave(){
-  clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';
+  clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=1;for(const k in bad)delete bad[k];
   if(RM)RM.presence({n:null,st:null,off:null});
 }
 function netEnd(text,title){netLeave();msg.textContent='Choose your sortie';setPause(false);pmenu.classList.remove('show');endMenu();$('rtit').textContent=title||'MATCH OVER';$('rtxt').textContent=text;$('res').classList.add('show')}
@@ -1171,7 +1172,7 @@ function netStep(){
   }
 }
 $('b3').onclick=openOnline;
-$('ofind').onclick=()=>{if(!RM||wait)return;if(lst=='queue'){lst='idle';ost.textContent=''}else if(lst=='idle'){lst='queue';ost.textContent='Searching for an opponent…'}pushLobby();syncBtns();lobbyTick()};
+$('ofind').onclick=()=>{if(!RM||wait)return;if(lst=='queue'){lst='idle';ost.textContent=''}else if(lst=='idle'){lst='queue';qs=Date.now();ost.textContent='Searching for an opponent…'}pushLobby();syncBtns();lobbyTick()};
 $('oinv').onclick=()=>{
   if(wait)return cancelWait('');
   if(!RM||lst!='idle')return;
@@ -1196,6 +1197,21 @@ $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();i
 addEventListener('pagehide',()=>{if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 setInterval(()=>{if(onl.classList.contains('show'))lobbyTick()},2000);
+// self-healing lobby: after a match, or whenever the connection / our own presence goes missing, rebuild it from scratch
+const subLobby=()=>{if(RM&&!lobbyUn)lobbyUn=RM.onPeers(lobbyTick,()=>{})};
+async function resetLobby(){
+  try{lobbyUn&&lobbyUn()}catch(e){}lobbyUn=null;
+  try{RM&&await RM.close()}catch(e){}
+  RM=null;try{RM=await getRoom()}catch(e){RM=null}
+  subLobby();if(RM)pushLobby();
+}
+let dcn=0,busyFix=0;
+setInterval(async()=>{
+  if(!onl.classList.contains('show')||net.on||wait||!RM||busyFix)return;
+  dcn=RM.connected()&&RM.peers().some(p=>p.sameTab)?0:dcn+1;
+  const stuck=lst=='queue'&&Date.now()-qs>25000;
+  if(dcn>=3||stuck){dcn=0;qs=Date.now();busyFix=1;try{await resetLobby();syncBtns();lobbyTick()}finally{busyFix=0}}
+},2000);
 (()=>{const c=(new URLSearchParams(location.search).get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');   // friend opened an invite link
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
 $('cacc').onclick=()=>{const c=incoming;$('chal').classList.remove('show');if(c){if(lst=='queue'){lst='idle'}acceptRoom(c)}};
