@@ -145,7 +145,7 @@ function togglePause(){setPause(mode=='online'?!pmenu.classList.contains('show')
 pbtn.onclick=()=>setPause(true);
 $('presume').onclick=()=>setPause(false);
 $('prestart').onclick=()=>{setPause(false);start(mode)};
-$('pquit').onclick=()=>{setPause(false);msg.textContent='Choose your sortie';if(mode=='online'){netLeave();msg.textContent='You left the match.'}endMenu()};
+$('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on)netLeave();endMenu();if(on)openOnline()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode!='online')setPause(true)});
 addEventListener('blur',()=>{if(mode!='online')setPause(true)});
 // ---------- sharp MiG-29 style silhouette (top-down) ----------
@@ -1156,7 +1156,7 @@ function netLeave(){
   clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=0;for(const k in bad)delete bad[k];
   if(!gone)setTimeout(()=>resetLobby().then(()=>lobbyTick()),300);
 }
-function netEnd(text,title){netLeave();msg.textContent='Choose your sortie';setPause(false);pmenu.classList.remove('show');endMenu();$('rtit').textContent=title||'MATCH OVER';$('rtxt').textContent=text;$('res').classList.add('show')}
+function netEnd(text,title){netLeave();msg.textContent='Choose your sortie';setPause(false);pmenu.classList.remove('show');endMenu();openOnline();$('rtit').textContent=title||'MATCH OVER';$('rtxt').textContent=text;$('res').classList.add('show')}
 $('rok').onclick=()=>$('res').classList.remove('show');
 function netStep(){
   const R=net.room;if(!R||!P[1])return;
