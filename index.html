@@ -302,27 +302,51 @@ function droneJet(x,y,e){   // small dart-shaped suicide drone, nose toward its 
   ctx.fillStyle='#231a1b';ctx.fillRect(-1.6,-4,3.2,10);
   ctx.restore();
 }
+const CL=130,CW=46,CM=[[-43,CL-40],[43,CL-40],[-43,-CL+48],[43,-CL+48]];   // carrier half-length, half-width, and its four deck gun mounts
+const cSlotX=j=>j%2?11:-13,cSlotY=(j,n)=>-CL+38+(n-1-j)*28;   // parking slots on the flight deck (jet 0 is nearest the bow and launches first)
+function parkedHit(e,b){for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0&&Math.abs(b.x-(e.x+cSlotX(j)))<17&&Math.abs(b.y-(e.y+cSlotY(j,e.nl)))<21)return j;return -1}
+function killPark(e,j){const bx=e.x+cSlotX(j),by=e.y+cSlotY(j,e.nl);e.pk[j]=0;pts+=FT.striker.pts;burst(bx,by,C.ember,18);burst(bx,by,C.cream,8);pop(bx,by-24,'PARKED STRIKER +'+FT.striker.pts)}
+function deckJet(px,py,sc,lift,fl){   // a striker seen on the deck: small while parked, growing as it lifts off
+  const m=FM.striker;
+  ctx.save();ctx.translate(px+2+8*lift,py+3+10*lift);ctx.rotate(Math.PI);ctx.scale(sc,sc);ctx.fillStyle='rgba(16,22,22,.3)';ctx.fill(m.body);ctx.restore();
+  ctx.save();ctx.translate(px,py);ctx.rotate(Math.PI);ctx.scale(sc,sc);ctx.lineJoin='miter';ctx.miterLimit=8;
+  if(fl>0)for(const cx of[-m.nz,m.nz]){const f=fl*(.7+Math.random()*.5);ctx.fillStyle=C.ember;ctx.beginPath();ctx.moveTo(cx-2.4,m.ny);ctx.lineTo(cx+2.4,m.ny);ctx.lineTo(cx,m.ny+f);ctx.fill()}
+  ctx.fillStyle=m.fill;ctx.fill(m.body);ctx.strokeStyle='rgba(236,217,208,.6)';ctx.lineWidth=1.3;ctx.stroke(m.body);
+  ctx.fillStyle=m.cc;ctx.fill(m.can);ctx.restore();
+}
 function bigShip(x,y,e){   // battleship and aircraft carrier: bow toward the player, wake behind
-  const p=P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?96:72,Wd=car?34:16;
+  const p=P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?CL:72,Wd=car?CW:16;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
-  ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=2.4;
+  ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=car?3.2:2.4;
   for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*(Wd-2),L-30);ctx.lineTo(sd*(Wd+14)+fl,-L-50);ctx.stroke()}
   ctx.fillStyle='rgba(24,35,34,.22)';ctx.fillRect(-Wd+8,-L+10,Wd*2,L*2-6);
   ctx.strokeStyle='rgba(236,217,208,.45)';ctx.lineWidth=1;
   ctx.fillStyle=car?'#3c434c':'#3a4149';ctx.beginPath();ctx.moveTo(0,L+14);ctx.lineTo(Wd,L-30);ctx.lineTo(Wd,-L);ctx.lineTo(-Wd,-L);ctx.lineTo(-Wd,L-30);ctx.closePath();ctx.fill();ctx.stroke();
   if(car){
-    ctx.fillStyle='#4d555f';ctx.fillRect(-Wd+4,-L+6,Wd*2-8,L*2-34);
-    ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.4;ctx.setLineDash([9,7]);ctx.beginPath();ctx.moveTo(-5,-L+12);ctx.lineTo(-5,L-36);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='#2f353c';ctx.fillRect(Wd-16,-22,12,40);ctx.fillStyle='#e8d9a8';ctx.fillRect(Wd-14,-14,8,2);
-    const rem=e.nl-e.ln;   // planes still parked on the deck
-    for(let i=0;i<rem;i++){const px=-17+(i%2)*14,py=-L+24+i*19;ctx.fillStyle='#231a1b';ctx.beginPath();ctx.moveTo(px,py+9);ctx.lineTo(px-7,py-4);ctx.lineTo(px-1.5,py-3);ctx.lineTo(px,py-9);ctx.lineTo(px+1.5,py-3);ctx.lineTo(px+7,py-4);ctx.closePath();ctx.fill()}
-    for(const gx of[-24,24]){const gy=L-44,a=Math.atan2(p.y-(y+gy),p.x-(x+gx));ctx.fillStyle='#262b31';ctx.beginPath();ctx.arc(gx,gy,5,0,6.28);ctx.fill();ctx.strokeStyle='#262b31';ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx+Math.cos(a)*13,gy+Math.sin(a)*13);ctx.stroke()}
+    // flight deck with a blunt, tapered bow
+    ctx.fillStyle='#4d555f';ctx.beginPath();ctx.moveTo(-Wd+4,-L+6);ctx.lineTo(Wd-4,-L+6);ctx.lineTo(Wd-4,L-36);ctx.lineTo(11,L+4);ctx.lineTo(-11,L+4);ctx.lineTo(-Wd+4,L-36);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle='rgba(232,217,168,.32)';ctx.lineWidth=1.2;for(const sx of[-1,1]){ctx.beginPath();ctx.moveTo(sx*(Wd-10),-L+12);ctx.lineTo(sx*(Wd-10),L-40);ctx.stroke()}   // deck edge stripes
+    ctx.strokeStyle='rgba(236,217,208,.45)';ctx.lineWidth=1.4;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(0,-L+14);ctx.lineTo(0,L-2);ctx.stroke();ctx.setLineDash([]);   // launch lane
+    ctx.strokeStyle='rgba(20,22,26,.55)';ctx.lineWidth=1.6;for(const sx of[-3.5,3.5]){ctx.beginPath();ctx.moveTo(sx,L-62);ctx.lineTo(sx,L-6);ctx.stroke()}   // catapult track
+    ctx.fillStyle='rgba(236,217,208,.35)';for(const cy of[L-84,L-72]){ctx.beginPath();ctx.moveTo(-6,cy);ctx.lineTo(0,cy+7);ctx.lineTo(6,cy);ctx.lineTo(0,cy+3);ctx.closePath();ctx.fill()}
+    ctx.strokeStyle='#39414a';ctx.lineWidth=1.4;for(const ey of[28,70]){ctx.strokeRect(-Wd+7,ey,20,24);ctx.beginPath();ctx.moveTo(-Wd+7,ey);ctx.lineTo(-Wd+27,ey+24);ctx.stroke()}   // deck elevators
+    // island on the starboard edge with a turning radar
+    ctx.fillStyle='#2f353c';ctx.fillRect(Wd-19,-30,16,60);ctx.fillStyle='#3b434b';ctx.fillRect(Wd-17,-24,12,24);
+    ctx.fillStyle='#e8d9a8';ctx.fillRect(Wd-16,-12,10,2.4);ctx.fillRect(Wd-16,-6,10,2.4);
+    const ra=e.age*2.6;ctx.strokeStyle='#cfd3d6';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(Wd-11-Math.cos(ra)*8,-16-Math.sin(ra)*4);ctx.lineTo(Wd-11+Math.cos(ra)*8,-16+Math.sin(ra)*4);ctx.stroke();
+    ctx.fillStyle='#ffcf4a';ctx.beginPath();ctx.arc(Wd-11,-16,1.8,0,6.28);ctx.fill();
+    // strikers waiting on the deck, then taxiing down the lane and lifting off the bow
+    for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0)deckJet(cSlotX(j),cSlotY(j,e.nl),.6,0,0);
+    if(e.lau){const q=e.lau,u=Math.max(0,(q.t-.5)/q.T),k=Math.min(1,u*2.4),sx=cSlotX(q.i)*(1-k*k*(3-2*k)),py=q.sy0+(CL+8-q.sy0)*u*u,lf=Math.pow(Math.max(0,(u-.45)/.55),1.5);
+      deckJet(sx,py,.6+.3*lf,lf,q.t>.2?6+26*u:0)}
+    for(const m of CM){const gx=m[0],gy=m[1],a=Math.atan2(p.y-(y+gy),p.x-(x+gx));ctx.fillStyle='#20252b';ctx.beginPath();ctx.arc(gx,gy,6.5,0,6.28);ctx.fill();ctx.strokeStyle='#262b31';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx+Math.cos(a)*15,gy+Math.sin(a)*15);ctx.stroke();ctx.fillStyle='#3a424a';ctx.beginPath();ctx.arc(gx,gy,3,0,6.28);ctx.fill()}
   }else{
     ctx.fillStyle='#4f5761';ctx.fillRect(-Wd+3,-L+6,Wd*2-6,L*2-30);
     ctx.fillStyle='#2f353c';ctx.fillRect(-10,-16,20,26);ctx.fillStyle='#e8d9a8';ctx.fillRect(-7,-9,14,2);
     for(const oy of[-50,-28,26,48]){const a=Math.atan2(p.y-(y+oy),p.x-x);ctx.fillStyle='#2b3036';ctx.beginPath();ctx.arc(0,oy,7,0,6.28);ctx.fill();ctx.strokeStyle='#1b1f24';ctx.lineWidth=3.6;ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(Math.cos(a)*19,oy+Math.sin(a)*19);ctx.stroke()}
   }
-  ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(-Wd+3,-L+6,Wd*2-6,L*2-30);
+  if(!car){ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(-Wd+3,-L+6,Wd*2-6,L*2-30)}
   ctx.restore();
 }
 const STAR=(()=>{const p=new Path2D();for(let i=0;i<10;i++){const r=i%2?13:32,a=-Math.PI/2+i*Math.PI/5;i?p.lineTo(Math.cos(a)*r,Math.sin(a)*r):p.moveTo(Math.cos(a)*r,Math.sin(a)*r)}p.closePath();return p})();
@@ -410,19 +434,25 @@ function ground(ty,sd,off){   // ground units appear on the desert and drive tow
   const d=GD[ty],wy=scroll+50+(off||0),ratio=.45+rnd()*.4;if(sd===undefined)sd=railS!==null?1:(rnd()<.5?1:0);
   en.push({ty,gnd:1,wy,ratio,sd,x:gndX(wy,ratio,sd),y:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,rc:0,ph:0,n:0,alt:0});
 }
-const SD={boat:{hp:30,r:16,pts:200,v:42},ship:{hp:100,r:26,pts:500,v:12},battle:{hp:260,r:36,pts:900,v:10,hw:30,hh:72},carrier:{hp:480,r:44,pts:1800,v:0,hw:36,hh:96}};
+const SD={boat:{hp:30,r:16,pts:200,v:42},ship:{hp:100,r:26,pts:500,v:12},battle:{hp:260,r:36,pts:900,v:10,hw:30,hh:72},carrier:{hp:700,r:50,pts:2500,v:0,hw:48,hh:146}};
 function sea(ty,off){   // boats and ships sail down the gulf; the battleship and carrier are big and use a long hit box
-  const d=SD[ty],big=ty=='battle'||ty=='carrier',wy=scroll+50+(off||0),ratio=big?.4+rnd()*.2:.2+rnd()*.6;
-  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:ty=='carrier'?-140:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,hw:d.hw,hh:d.hh,nl:ty=='carrier'?3+Math.floor(rnd()*3):0,ln:0,lt:5,rc:0,ph:0,n:0,alt:0});
+  const d=SD[ty],NL=ty=='carrier'?3+Math.floor(rnd()*3):0,big=ty=='battle'||ty=='carrier',wy=scroll+50+(off||0),ratio=big?.4+rnd()*.2:.2+rnd()*.6;
+  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:ty=='carrier'?-170:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,hw:d.hw,hh:d.hh,nl:NL,pk:Array(NL).fill(FT.striker.hp),ln:0,lt:7,lau:null,rc:0,ph:0,n:0,alt:0});
 }
 function oilField(){   // two or three oil rigs sit in the gulf; blowing one up can set off its neighbours
   const n=2+(rnd()<.5?1:0),r0=.3+rnd()*.4;
   for(let i=0;i<n;i++){const wy=scroll+50+i*105,ratio=Math.max(.25,Math.min(.75,r0+(rnd()-.5)*.3));
-    en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:150,mhp:150,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
+    en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:100,mhp:100,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
+}
+function blast(e){   // drone explosion: area damage to you and a little to anything flying close by (other drones are not set off)
+  const p=P[0],R=80;rings.push({x:e.x,y:e.y,t:0});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
+  if(p&&p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y)}
+  for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<R-10){o.hp-=22;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
 function kamikaze(nn){   // suicide drones dive in from the top and home in on you
   const n=nn||(1+(mt>110?1:0)+(mt>180?1:0)),x0=70+rnd()*(W-140);
-  for(let i=0;i<n;i++)en.push({ty:'kamikaze',x:Math.max(40,Math.min(W-40,x0+(i-(n-1)/2)*70)),y:-40-i*50,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0});
+  const gap=Math.min(125,(W-110)/Math.max(1,n-1)),xs=rnd()<.5?1:-1;
+  for(let i=0;i<n;i++)en.push({ty:'kamikaze',x:Math.max(40,Math.min(W-40,(n>1?W/2+(i-(n-1)/2)*gap*xs+(rnd()-.5)*30:x0))),y:-40-i*70-rnd()*30,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0});
 }
 function starfield(slot,n){   // star plane glides in toward a spot near the centre (spread out when several come together), sprays random shots while spinning, then drifts away by a side
   n=n||1;const tx=Math.max(70,Math.min(W-70,n>1?W/2+((slot||0)-(n-1)/2)*(n==3?140:170)+(rnd()-.5)*30:W/2+(rnd()-.5)*170)),gy=H*.26+rnd()*H*.16,x0=Math.max(60,Math.min(W-60,tx+(rnd()-.5)*220));
@@ -438,6 +468,7 @@ function spawnTrain(){   // appears from behind, runs up the track beside you, t
 function pop(x,y,s){pops.push({x,y,s,t:1.2})}
 function killE(e){
   e.dead=1;pts+=e.pts;burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);
+  if(e.ty=='kamikaze')blast(e);   // shot-down drones still blow up
   if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
   if(e.ty=='cargo'){pop(e.x,e.y-26,'CARGO +'+e.pts);if(rnd()<(e.sup?.55:.3))pickups.push({x:e.x,y:e.y,t:0})}   // rarely drops a health pickup
   if(e.oil){   // oil rig explodes: area damage now, then the slick burns for a while
@@ -446,7 +477,8 @@ function killE(e){
     if(q&&q.alive){const d=Math.hypot(q.x-e.x,q.y-e.y);if(d<R)hurt(q,Math.round(30*(1-d/R*.6)),q.x,q.y)}
     for(const o of en)if(!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<R){o.hp-=o.oil?90:60;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
   }
-  if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}pop(e.x,e.y-e.hh-12,(e.ty=='carrier'?'CARRIER +':'BATTLESHIP +')+e.pts)}
+  if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}if(e.ty=='carrier')for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0){const bx=e.x+cSlotX(j),by2=e.y+cSlotY(j,e.nl);burst(bx,by2,C.ember,16);burst(bx,by2,C.cream,6)}
+    pop(e.x,e.y-e.hh-12,(e.ty=='carrier'?'CARRIER +':'BATTLESHIP +')+e.pts)}
   if(e.g&&++e.g.k==e.g.n){pts+=e.g.bonus;pop(e.x,e.y-26,e.g.label+' +'+e.g.bonus)}
 }
 function shot(e,a,s,d,ox,oy){bul.push({x:e.x+(ox||0),y:e.y+(oy===undefined?16:oy),vx:Math.cos(a)*s,vy:Math.sin(a)*s,o:2,d,tr:[]})}
@@ -469,7 +501,7 @@ function fireN(e,p){
   else if(t=='boat'){shot(e,a,200,8,0,16);e.cd=1.9}                                     // patrol boat: one aimed shot
   else if(t=='ship'){const oy=[-12,6,24][e.n];shot(e,Math.atan2(p.y-(e.y+oy),p.x-e.x),205,8,0,oy);e.n=(e.n+1)%3;e.cd=e.n?.4:2.8}   // ship: three aimed shots, one gun after another
   else if(t=='battle'){const oy=[-50,-28,26,48][e.n];shot(e,Math.atan2(p.y-(e.y+oy),p.x-e.x),215,9,0,oy);e.n=(e.n+1)%4;e.cd=e.n?.26:2.7}   // battleship: four heavy aimed shots, one gun after another
-  else if(t=='carrier'){const gx=e.n?24:-24,gy=52;shot(e,Math.atan2(p.y-(e.y+gy),p.x-(e.x+gx)),205,8,gx,gy);e.n=(e.n+1)%2;e.cd=e.n?.3:2.3}   // carrier: deck guns fire left, then right
+  else if(t=='carrier'){const m=CM[e.n];shot(e,Math.atan2(p.y-(e.y+m[1]),p.x-(e.x+m[0])),205,8,m[0],m[1]);e.n=(e.n+1)%4;e.cd=e.n%2?.3:1.9}   // carrier: bow pair fires left-right, then the stern pair
   else if(t=='trainC'){shot(e,a,200,8,0,0);e.cd=2.6+rnd()*.8}                          // cart guns: aimed
   else{for(let i=-1;i<=1;i++)shot(e,a+i*.28,175,8,0,0);e.cd=3.2}                       // engine: 3-way fan
 }
@@ -522,7 +554,7 @@ function oilRig(x,y,e){   // top-down offshore rig: deck, legs, tanks, derrick, 
 // (time survived, nudged up when you play clean and down when you are hurting). Once the sky has been quiet for a moment it buys
 // the next encounter from a library of formations, weighted for variety and for this run's random favourites.
 // Ground, sea and cargo run on their own lanes. Each stage ends in a milestone set piece, then a breather with a supply drop.
-const COST={minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:4,striker:3.2,trio:3.8,dread:9,kamikaze:1.2,a10:2,starfield:5};
+const COST={minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:3,striker:3.2,trio:3.8,dread:9,kamikaze:.8,a10:2,starfield:5};
 const SYB={minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100};
 let D={stage:1,bn:null},dq=[],lastHit=-99;
 const hasT=t=>en.some(e=>e.ty==t&&!e.dead);
@@ -569,26 +601,31 @@ const ENC=[
  {id:'squad',tag:'squad',minT:20,w:3,ok:()=>!hasT('wing'),make(){const n=Math.min(3+Math.floor(mt/70),5);return[X(0,n*1.1,()=>squad(undefined,n))]}},
  {id:'line4',tag:'form',minT:22,w:2,make(){const g=grade();return L(4,i=>U(0,g,W/2+(i-1.5)*95,120,{am:26,fq:.5,ph:0}))}},
  {id:'vee',tag:'form',minT:28,w:3,make(){const g=grade(),cx=W/2+(rnd()-.5)*80;return L(5,i=>{const j=(i+1)>>1,sd=i%2?1:-1;return U(j*.3,g,cx+(i?sd*j*70:0),185-j*34,{am:30,fq:.5,ph:0})})}},
- {id:'heli',tag:'heavy',minT:34,w:2,make(){return[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})]}},
+ {id:'heli',tag:'heavy',minT:20,w:2.4,make(){return[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.8,'minion',W/2-120,100,{am:22,fq:.5,ph:0}),U(.8,'minion',W/2+120,100,{am:22,fq:.5,ph:0})]}},
+ {id:'heli2',tag:'heavy',minT:40,w:2,make(){return[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})]}},
+ {id:'helipair',tag:'heavy',minT:55,w:1.5,make(){return[U(0,'heli',W/2-110,120,{am:22,fq:.5,ph:0}),U(.6,'heli',W/2+110,120,{am:22,fq:.5,ph:Math.PI})]}},
  {id:'pincer',tag:'form',minT:36,w:2,make(){const g=grade();return L(6,i=>{const r=i>>1,l=i%2==0;return U(r*.45,g,l?95:W-95,100+r*52,{am:30,fq:.5,ph:l?0:Math.PI})})}},
- {id:'kami',tag:'drone',minT:38,w:2,ok:()=>!hasT('kamikaze'),make(){const n=1+(mt>110?1:0)+(mt>180?1:0);return[X(0,n*1.3,()=>kamikaze(n))]}},
+ {id:'kami',tag:'drone',minT:38,w:2,ok:()=>!hasT('kamikaze'),make(){const n=1+(mt>100?1:0)+(mt>170?1:0)+(mt>260?1:0);return[X(0,n*.9,()=>kamikaze(n))]}},
+ {id:'kamiwave',tag:'drone',minT:140,w:2.2,ok:()=>!hasT('kamikaze'),make(){const n=mt>240?4:3;return[X(0,n*.7,()=>kamikaze(n)),X(4.5,n*.7,()=>kamikaze(n))]}},
+ {id:'kamiswarm',tag:'drone',minT:230,w:2.4,ok:()=>!hasT('kamikaze'),make(){const n=mt>340?5:4;return[X(0,n*.7,()=>kamikaze(n)),X(4,n*.7,()=>kamikaze(n)),X(8,n*.7,()=>kamikaze(n))]}},
  {id:'diamond',tag:'form',minT:44,w:2,make(){const g=grade();return[U(0,g,W/2,105,{am:25,fq:.5,ph:0}),U(.4,g,W/2-92,158,{am:25,fq:.5,ph:Math.PI}),U(.4,g,W/2+92,158,{am:25,fq:.5,ph:0}),U(.8,g,W/2,212,{am:25,fq:.5,ph:Math.PI})]}},
  {id:'scouts',tag:'form',minT:45,w:2,make(){return L(3,i=>U(i*.6,'scout',110+i*130,110+(i%2)*30))}},
  {id:'strafe',tag:'drone',minT:50,w:2,ok:()=>!hasT('a10'),make(){return mt>130?[X(0,2,strafe),X(2.6,2,strafe)]:[X(0,2,strafe)]}},
  {id:'wall',tag:'form',minT:58,w:1.6,make(){const g=grade();return L(5,i=>U(i*.25,g,66+i*87,112+(i%2)*26,{am:18,fq:.5,ph:i}))}},
  {id:'curtain',tag:'form',minT:75,w:1.6,make(){const g=grade();return L(6,i=>{const r=i%3,l=i<3;return U(r*.4,g,l?70+r*58:W-70-r*58,100+r*30,{am:20,fq:.5,ph:l?0:Math.PI})})}},
  {id:'stars',tag:'star',minT:90,w:2,ok:()=>!hasT('starfield'),make(){const mx=mt>200?3:mt>140?2:1;return starItems(1+Math.floor(rnd()*mx))}},
+ {id:'helitrio',tag:'heavy',minT:130,w:1,make(){return[U(0,'heli',100,125,{am:20,fq:.45,ph:0}),U(.5,'heli',W/2,105,{am:20,fq:.45,ph:Math.PI/2}),U(1,'heli',W-100,125,{am:20,fq:.45,ph:Math.PI})]}},
  {id:'trios',tag:'heavy',minT:105,w:1.6,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI})]}},
  {id:'striker',tag:'heavy',minT:120,w:1,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.8,'minion2',W/2-120,100,{am:25,fq:.55,ph:0}),U(.8,'minion2',W/2+120,100,{am:25,fq:.55,ph:0})]}},
  {id:'squads2',tag:'squad',minT:130,w:2,ok:()=>!hasT('wing'),make(){const n=mt>220?4:3;return[X(0,n*1.1,()=>squad(150,n)),X(1.4,n*1.1,()=>squad(W-150,n))]}},
- {id:'helis',tag:'heavy',minT:150,w:1.5,make(){return[U(0,'heli',130,120,{am:22,fq:.45,ph:0}),U(.6,'heli',W-130,120,{am:22,fq:.45,ph:Math.PI}),U(1.4,'minion2',W/2,95,{am:30,fq:.5,ph:0})]}},
+ {id:'helis',tag:'heavy',minT:85,w:1.5,make(){return[U(0,'heli',130,120,{am:22,fq:.45,ph:0}),U(.6,'heli',W-130,120,{am:22,fq:.45,ph:Math.PI}),U(1.4,'minion2',W/2,95,{am:30,fq:.5,ph:0})]}},
  {id:'ace',tag:'heavy',minT:200,w:1.2,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.6,'trio',120,125,{am:35,fq:.6,ph:0}),U(1.1,'trio',W-120,125,{am:35,fq:.6,ph:Math.PI})]}}
 ];
 // ----- milestones: each stage ends with one of these -----
 const MS=[
  {id:'gunship',name:'HELICOPTER GUNSHIP',minS:1,w:3,make(){const a=[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})];if(mt>100)a.push(U(1.4,'minion',W/2-185,150,{am:15,fq:.5,ph:0}),U(1.4,'minion',W/2+185,150,{am:15,fq:.5,ph:0}));return a}},
  {id:'twinsq',name:'TWIN SQUADRONS',minS:2,w:2,ok:()=>!hasT('wing'),make(){return[X(0,4.4,()=>squad(150,4)),X(2.5,4.4,()=>squad(W-150,4)),X(7,5.5,()=>squad(W/2,5))]}},
- {id:'swarm',name:'DRONE SWARM',minS:2,w:2,ok:()=>!hasT('kamikaze'),make(){return[X(0,3.6,()=>kamikaze(3)),X(5,3.6,()=>kamikaze(3)),X(10,4.8,()=>kamikaze(D.stage>=4?4:3))]}},
+ {id:'swarm',name:'DRONE SWARM',minS:2,w:2,ok:()=>!hasT('kamikaze'),make(){const n=Math.min(6,1+D.stage);return[X(0,n*1.2,()=>kamikaze(n)),X(4,n*1.2,()=>kamikaze(n)),X(8,n*1.2,()=>kamikaze(n))]}},
  {id:'stars',name:'STAR STORM',minS:2,w:2,ok:()=>!hasT('starfield'),make(){return starItems(Math.min(3,1+Math.floor(D.stage/2)))}},
  {id:'battle',name:'BATTLESHIP',minS:2,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,10,()=>sea('battle')),U(3,'minion2',W/2-110,110,{am:25,fq:.5,ph:0}),U(3,'minion2',W/2+110,110,{am:25,fq:.5,ph:Math.PI}),X(5,2.5,()=>sea('boat')),X(8,2.5,()=>sea('boat',95))]}},
  {id:'oil',name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
@@ -612,6 +649,7 @@ function pickEnc(){
     if(e.tag=='form'&&e.id!='scouts')w*=Math.max(.3,1-Math.max(0,h-3)*.17);   // late game: fewer plain minion formations
     if(D.fav.includes(e.tag))w*=1.6;                      // this run's favourites
     if(e.tag=='heavy'||e.tag=='star')w*=1+h*.1;
+    if(e.id.startsWith('kami'))w*=1+h*.2;                 // drones get more common the longer you survive
     cs.push({e,it,w});
   }
   if(!cs.length)return false;
@@ -663,7 +701,7 @@ function lanes(h){
   }
 }
 function spawnOne(){   // random filler: one hovering fighter at the spot farthest from the others, with its own free sway
-  const r=rnd(),h=heat(),ty=(mt>85&&r>.82)?'scout':(mt>30&&h>1.5&&r>.8&&!hasT('heli'))?'heli':(mt>18&&r>.5)?'minion2':'minion',d=FT[ty];
+  const r=rnd(),h=heat(),ty=(mt>85&&r>.82)?'scout':(mt>22&&r>.75&&!hasT('heli'))?'heli':(mt>18&&r>.5)?'minion2':'minion',d=FT[ty];
   let bx=W/2,bd=-1;
   for(let i=0;i<5;i++){const x=70+rnd()*(W-140),m=Math.min(999,...en.filter(e=>!e.gnd).map(e=>Math.abs(e.x-x)));if(m>bd){bd=m;bx=x}}
   bx=Math.max(105,Math.min(W-105,bx));
@@ -715,9 +753,18 @@ function mission(){
       if(e.y<-120)e.dead=1;
     }else if(e.gnd){
       if(ty=='carrier'){   // glides in, keeps pace with you for a long time while launching strikers, then slowly falls behind
-        const t=Math.max(0,1-e.age/4),dy=Math.max(0,e.age-50);e.y=150-290*t*t+dy*dy*1.1;e.wy=scroll-e.y;
-        if(e.ln<e.nl&&e.age>4&&e.y<H*.55){e.lt-=DT;if(e.lt<=0){e.ln++;e.lt=3.2;const sx=e.x+(e.ln%2?-12:12);
-          en.push({ty:'striker',x:sx,x0:sx,tx:sx,y:e.y+10,sy:230+rnd()*50,age:0,cd:1.3,hp:FT.striker.hp,mhp:FT.striker.hp,r:FT.striker.r,pts:FT.striker.pts,ph:rnd()*6.28,n:0,alt:0,rc:0})}}
+        const t=Math.max(0,1-e.age/5),dy=Math.max(0,e.age-52);e.y=165-335*t*t+dy*dy*1.1;e.wy=scroll-e.y;
+        if(e.lau){   // a striker is taxiing down the deck: short engine spool-up, then it accelerates and leaves the bow
+          e.lau.t+=DT;
+          if(e.lau.t>=e.lau.T+.5){
+            const sx=e.x,sy=e.y+CL+8,d=FT.striker;
+            en.push({ty:'striker',x:sx,x0:sx,tx:sx,y:sy,sy:270+rnd()*50,vy0:e.lau.v*.9,age:0,cd:1.1,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:rnd()*6.28,n:0,alt:0,rc:0});
+            e.lau=null;e.lt=6.5;
+          }
+        }else if((()=>{while(e.ln<e.nl&&e.pk[e.ln]<=0)e.ln++;return e.ln<e.nl})()&&e.age>6&&e.y<H*.55){
+          e.lt-=DT;
+          if(e.lt<=0){const i=e.ln,s0=cSlotY(i,e.nl),T=1.2+(CL+8-s0)/220;e.lau={i,t:0,T,sy0:s0,v:2*(CL+8-s0)/T};e.ln++}
+        }
       }else{e.wy-=e.v*DT;e.y=scroll-e.wy}
       e.x=gndX(e.wy,e.ratio,e.sd);
       if(e.y>H+(e.hh||0)+60)e.dead=1;
@@ -736,11 +783,16 @@ function mission(){
       e.spd=Math.min(235,e.spd+38*DT);
       if(p.alive){let d=Math.atan2(p.y-e.y,p.x-e.x)-e.ang;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;e.ang+=Math.max(-2.1*DT,Math.min(2.1*DT,d))}
       e.x+=Math.cos(e.ang)*e.spd*DT;e.y+=Math.sin(e.ang)*e.spd*DT;
-      if(p.alive&&Math.hypot(e.x-p.x,e.y-p.y)<e.r+16){
-        e.dead=1;const R=80,d=Math.hypot(e.x-p.x,e.y-p.y);rings.push({x:e.x,y:e.y,t:0});
-        burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y);
+      e.cx=(e.cx||0)-DT;
+      if(e.cx<=0&&!e.dead)for(const o of en)if(o!==e&&o.ty=='kamikaze'&&!o.dead&&(o.cx||0)<=0&&Math.hypot(o.x-e.x,o.y-e.y)<e.r+o.r-2){   // two drones clip each other: sometimes they both blow up
+        e.cx=o.cx=1.5;
+        if(rnd()<.5){e.dead=o.dead=1;e.x=o.x=(e.x+o.x)/2;e.y=o.y=(e.y+o.y)/2;blast(e)}
+        break;
       }
-      if(e.y>H+70||e.y<-120||e.x<-80||e.x>W+80)e.dead=1;
+      if(!e.dead&&p.alive&&Math.hypot(e.x-p.x,e.y-p.y)<e.r+16){
+        e.dead=1;blast(e);
+      }
+      if(e.y>H+70||(e.y<-120&&e.age>5)||e.x<-80||e.x>W+80)e.dead=1;   // drones queued above the screen are not culled while they fly in
     }else if(ty=='starfield'){
       e.ang+=e.w*DT;
       if(e.st==0){   // smooth glide in
@@ -757,6 +809,7 @@ function mission(){
         if(e.x<-70||e.x>W+70)e.dead=1;
       }
     }else{
+      if(e.vy0>1){e.y+=e.vy0*DT;e.vy0*=Math.exp(-6*DT)}   // carrier launch: keep rolling off the bow
       e.y+=(e.sy+Math.sin(e.age*1.2+e.ph)*9-e.y)*(1-Math.exp(-2.2*DT));   // glide in from the top, then hold station
       if(ty=='scout'){
         if(Math.abs(e.x-e.tx)<10)e.tx=60+rnd()*(W-120);
@@ -801,6 +854,7 @@ function step(){
       if(b.o==2){const q=P[0];if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y)}}
       else if(mode=='mission'){
         for(const e of en)if(!e.dead&&!(e.warn>0)&&(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r)){
+          if(e.ty=='carrier'){const j=parkedHit(e,b);if(j>=0){b.dead=1;e.pk[j]-=b.d;burst(b.x,b.y,C.cream,3);if(e.pk[j]<=0)killPark(e,j);break}}
           b.dead=1;e.hp-=b.d;burst(b.x,b.y,C.cream,3);
           if(e.hp<=0)killE(e);
           break;
