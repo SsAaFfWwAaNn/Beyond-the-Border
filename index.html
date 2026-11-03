@@ -62,8 +62,17 @@ button:disabled{opacity:.5;cursor:default}
 #plist{width:100%;max-width:290px;display:flex;flex-direction:column;gap:5px;font-size:.85rem}
 .pl{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(24,35,34,.18);padding:5px 8px;border-radius:3px}
 #online .pl button{width:auto;padding:4px 10px;font-size:.75rem}
-#chal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,20,22,.6);z-index:6}
-#chal.show{display:flex}
+#ibar{position:absolute;right:0;top:64px;z-index:8;display:none;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+#ibar.show{display:flex}
+.iv{pointer-events:auto;display:flex;flex-direction:row-reverse;align-items:flex-start;max-width:100%}
+#ibar button{min-width:0;letter-spacing:.05em}
+.ic{position:relative;width:46px;height:46px;padding:0;border-radius:8px 0 0 8px;background:var(--ink);color:var(--cream);font-size:1.3rem;line-height:1;border:1px solid rgba(236,217,208,.4);border-right:0;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:ivp 1.4s ease-in-out infinite}
+.ic.open{animation:none;background:var(--brick,#c4574a)}
+.ic i{position:absolute;top:3px;left:4px;font:700 .62rem/1 'Hind Siliguri',system-ui,sans-serif;font-style:normal;color:var(--cream);background:#c4574a;border-radius:8px;padding:2px 4px;max-width:34px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes ivp{0%,100%{box-shadow:0 0 0 0 rgba(233,148,106,.7),0 4px 14px rgba(0,0,0,.35)}50%{box-shadow:0 0 0 7px rgba(233,148,106,0),0 4px 14px rgba(0,0,0,.35)}}
+.ip{background:var(--rose);color:var(--ink);padding:10px 12px;border-radius:8px 0 8px 8px;display:flex;flex-direction:column;gap:6px;width:170px;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:center}
+.ip b{font-size:1rem;word-break:break-word}.ip span{font-size:.8rem}
+.ip button{padding:7px 10px;font-size:.8rem;width:100%}
 #res{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,20,22,.7);z-index:7}
 #res.show{display:flex}
 </style></head>
@@ -100,7 +109,7 @@ button:disabled{opacity:.5;cursor:default}
 <div class="lbl">PILOTS ONLINE</div><div id="plist"></div>
 <button id="oback" class="alt" style="margin-top:auto">BACK</button></div>
 <div id="res"><div class="card" style="text-align:center;max-width:300px"><h2 id="rtit"></h2><div id="rtxt" style="font-weight:600"></div><button id="rok">OK</button></div></div>
-<div id="chal"><div class="card"><h2 id="chn" style="font-size:1.25rem;text-align:center"></h2><div>wants a 1v1 duel</div><button id="cacc">ACCEPT</button><button id="cdec" class="alt">DECLINE</button></div></div>
+<div id="ibar" aria-live="polite"></div>
 </div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=480,H=720,DT=1/60;
@@ -183,7 +192,7 @@ function jet(x,y,dir,pal){
 // ---------- game ----------
 function mk(i){return{i,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
 function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play'}
-function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'LEAVE MATCH':'MAIN MENU';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');reset()}
+function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'LEAVE MATCH':'MAIN MENU';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 function fire(p){if(p.cd>0)return;p.cd=.22;bul.push({x:p.x,y:p.y+p.dir*36,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]});if(mode=='online'&&p.i==0){net.fc++;net.fx=p.x;net.fy=p.y}}
 function ai(p){
@@ -1046,9 +1055,13 @@ async function mkRoom(name,hot){
     const hotS={},seen={},subs=new Set(),mine={};let hbT=0;let tracked='',ok=false,done=false;
     const fresh=(k,hb)=>{const o=seen[k];if(!o||o.hb!==hb){seen[k]={hb,at:Date.now()};return Date.now()}return o.at};   // updatedAt moves only while a peer's heartbeat keeps changing
     const build=()=>{
-      const ps=ch.presenceState(),out=[];
-      for(const k in ps){
-        const {presence_ref,...m}=ps[k][ps[k].length-1]||{},h=hotS[k],me=k==MYKEY;
+      const ps=ch.presenceState(),out=[],keys=new Set(Object.keys(ps)),nw=Date.now();
+      if(hot){   // game rooms: a pilot we hear via broadcast counts even if the presence list is slow or incomplete; ourselves always count
+        keys.add(MYKEY);
+        for(const k in hotS){const h=hotS[k];if(k!==MYKEY&&(ps[k]||(h.s&&!h.s.bye&&nw-h.at<8000)))keys.add(k)}
+      }
+      for(const k of keys){
+        const {presence_ref,...m}=(ps[k]&&ps[k][ps[k].length-1])||{},h=hotS[k],me=k==MYKEY;
         out.push(Object.freeze({peer:k,by:null,isMe:me,sameTab:me,kind:'viewer',guest:false,
           presence:Object.freeze(me?{...m,...mine}:{...m,...(h?h.s:{})}),updatedAt:h?h.at:fresh(k,m.hb)}));
       }
@@ -1060,7 +1073,7 @@ async function mkRoom(name,hot){
         for(const k in patch){if(patch[k]===null)delete mine[k];else mine[k]=patch[k]}
         if(!ok)return;
         const slow=JSON.stringify([mine.n,mine.st,mine.off,mine.hb]);
-        if(slow!==tracked){tracked=slow;await ch.track({n:mine.n,st:mine.st,off:mine.off,hb:mine.hb})}
+        if(slow!==tracked){tracked=slow;const r=await Promise.race([ch.track({n:mine.n,st:mine.st,off:mine.off,hb:mine.hb}),new Promise(res=>setTimeout(()=>res('slow'),4000))]);if(r!=='ok')tracked=''}   // a slow or failed track is retried on the next call
         if(hot&&'x' in patch)ch.send({type:'broadcast',event:'p',payload:{k:MYKEY,s:mine}});
       },
       async leave(){if(hot)try{ch.send({type:'broadcast',event:'bye',payload:{k:MYKEY}})}catch(e){}clearInterval(hbT);subs.clear();try{await SBC.removeChannel(ch)}catch(e){}}};
@@ -1090,7 +1103,7 @@ function getRoom(){   // single flight: page-load, the Online button and the rep
 }
 // ---------- online 1v1 netcode ----------
 const net={on:false,room:null,opp:null,oname:'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0};
-let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,needFresh=0,gone=0,qs=0,incoming=null,psig='';const dismissed={},bad={};
+let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,needFresh=0,gone=0,qs=0,psig='';const dismissed={},bad={};
 const nm=$('nm'),ost=$('ostat'),onl=$('online'),AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const clean=s=>(s||'').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,14),myName=()=>clean(nm.value)||'Pilot';
 const rcode=n=>Array.from({length:n},()=>AL[Math.floor(Math.random()*AL.length)]).join(''),rname=c=>'g-'+c.toLowerCase();
@@ -1099,7 +1112,7 @@ if(!nm.value)nm.value='Pilot'+(100+Math.floor(Math.random()*900));
 nm.onchange=()=>{nm.value=myName();try{localStorage.setItem('beyondBorderName',nm.value)}catch(e){}if(RM&&!net.on)pushLobby()};
 for(const id of['nm','ojc','ouser'])$(id).addEventListener('keydown',e=>e.stopPropagation());
 const pushLobby=()=>{if(RM)RM.presence({n:myName(),st:lst,off:offer||null})};
-function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'CANCEL SEARCH':'FIND A MATCH';$('ofind').disabled=b;$('oinv').textContent=b?'CANCEL':'INVITE A FRIEND';$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
+function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'CANCEL SEARCH':'FIND A MATCH';$('ofind').disabled=b&&lst!='queue';$('oinv').textContent=b&&lst!='queue'?'CANCEL':'INVITE A FRIEND';$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
 async function openOnline(){
   nm.onchange();menu.classList.add('hide');onl.classList.add('show');$('oname').textContent=myName();ost.textContent='';$('ocount').textContent='connecting…';$('plist').textContent='';psig='';
   for(const id of['ofind','oinv','ojoin','ouserb'])$(id).disabled=true;   // no clicks while the lobby is (re)connecting
@@ -1126,18 +1139,38 @@ function lobbyTick(){
     if(!others.length)pl.textContent='No other pilots online right now. Share the link with a friend!';
     for(const p of others.slice(0,8)){const d=document.createElement('div'),s=document.createElement('span');d.className='pl';
       s.textContent=clean(p.presence.n)+(p.presence.st=='queue'?' · searching':p.presence.st=='idle'?' · on menu':' · in match');d.appendChild(s);
-      if((p.presence.st=='idle'||p.presence.st=='queue')&&!wait&&lst=='idle'){const b=document.createElement('button');b.textContent='CHALLENGE';b.onclick=()=>challenge(p);d.appendChild(b)}
+      if(p.presence.st=='idle'&&!wait&&lst=='idle'){const b=document.createElement('button');b.textContent='CHALLENGE';b.onclick=()=>challenge(p);d.appendChild(b)}
       pl.appendChild(d)}}
   if(!me)return;
-  const inc=(lst=='idle'||lst=='queue')&&!wait?others.find(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='ch'&&!dismissed[p.presence.off.code]):null;
-  if(inc){incoming=inc.presence.off.code;incFrom=inc.peer;$('chn').textContent=clean(inc.presence.n)+' challenges you!';$('chal').classList.add('show')}else{incoming=null;$('chal').classList.remove('show')}
-  if(lst=='queue'&&!wait){
-    const off=others.find(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='mm'&&!dismissed[p.presence.off.code]&&!(bad[p.peer]&&Date.now()-bad[p.peer]<30000));   // skip offers that already failed for us
-    if(off)return acceptRoom(off.presence.off.code,off.peer);
-    const q=[me,...others.filter(p=>p.presence.st=='queue'&&!(bad[p.peer]&&Date.now()-bad[p.peer]<30000))].sort((a,b)=>a.peer<b.peer?-1:1),i=q.indexOf(me);
-    ost.textContent='Searching for an opponent… '+(q.length-1)+' other pilot'+(q.length==2?'':'s')+' in queue';
-    if(i%2==0&&q[i+1]){const code=rcode(6);wait={code,kind:'mm',t:Date.now(),to:q[i+1].peer};offer={to:q[i+1].peer,code,kind:'mm'};pushLobby();syncBtns();enterRoom(code).catch(()=>cancelWait('Could not open a match room.',1))}
+  const canGet=state=='menu'&&(lst=='idle'||(wait&&wait.kind=='q'));   // on the menu / online screen, or searching
+  renderInv(canGet?others.filter(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='ch'&&!dismissed[p.presence.off.code]).map(p=>({code:p.presence.off.code,peer:p.peer,name:clean(p.presence.n)||'Pilot'})):[]);
+}
+const ibar=$('ibar');let invSig='',openInv=null;
+function renderInv(list){   // side bar: one icon per pending challenge; tap an icon to open ACCEPT / DECLINE
+  if(openInv&&!list.some(v=>v.code===openInv))openInv=null;
+  const sig=list.map(v=>v.code+v.name).join(',')+'|'+openInv;
+  if(sig===invSig)return;invSig=sig;ibar.textContent='';
+  for(const v of list){
+    const row=document.createElement('div'),ic=document.createElement('button'),open=openInv===v.code;row.className='iv';
+    ic.className='ic'+(open?' open':'');ic.setAttribute('aria-label','Challenge from '+v.name);ic.title=v.name+' challenges you';
+    ic.textContent='\u2694';const tag=document.createElement('i');tag.textContent=v.name;ic.appendChild(tag);
+    ic.onclick=()=>{openInv=openInv===v.code?null:v.code;renderInv(list)};row.appendChild(ic);
+    if(open){
+      const pn=document.createElement('div');pn.className='ip';
+      const nme=document.createElement('b');nme.textContent=v.name;const t=document.createElement('span');t.textContent='wants a 1v1 duel';
+      const a=document.createElement('button'),d=document.createElement('button');a.textContent='ACCEPT';d.textContent='DECLINE';d.className='alt';
+      a.onclick=()=>{openInv=null;acceptInv(v)};d.onclick=()=>{dismissed[v.code]=1;openInv=null;renderInv(list.filter(x=>x!==v));lobbyTick()};
+      pn.append(nme,t,a,d);row.appendChild(pn);
+    }
+    ibar.appendChild(row);
   }
+  ibar.classList.toggle('show',list.length>0);
+}
+async function acceptInv(v){
+  if(wait&&wait.kind=='q')cancelWait('');
+  if(!onl.classList.contains('show'))await openOnline();   // from the main menu: open the online screen so progress is visible
+  if(!RM||wait)return;
+  dismissed[v.code]=1;renderInv([]);acceptRoom(v.code,v.peer);
 }
 async function enterRoom(code){
   const w=wait,r=await RM.join(rname(code));
@@ -1153,23 +1186,50 @@ function challenge(p){
   ost.textContent='Challenge sent to '+clean(p.presence.n)+'. Waiting for them to accept…';syncBtns();
   enterRoom(code).catch(()=>cancelWait('Could not open a match room.'));
 }
+function startQueue(){
+  if(!RM||net.on)return;
+  lst='queue';qs=Date.now();wait={code:'MM0',kind:'q',t:Date.now(),hb:0,sig:'',sigT:0};offer=null;
+  pushLobby();syncBtns();ost.textContent='Searching for an opponent…';
+  const w=wait;enterRoom('MM0').catch(()=>{if(wait===w)cancelWait('Could not reach the matchmaking room. Retrying…',1)});
+}
+function queueCheck(){   // roster comes only from heartbeats we actually receive; each heartbeat lists who the sender hears and who it has chosen ("to")
+  const w=wait,now=Date.now();
+  if(!oroom.connected()){if(!w.dc)w.dc=now;if(now-w.dc>6000)return cancelWait('Connection lost. Searching again…',1)}else w.dc=0;
+  const heard=oroom.peers().filter(p=>!p.sameTab&&p.presence.n&&typeof p.presence.x=='number'&&!p.presence.bye&&now-p.updatedAt<3500);
+  const mutual=heard.filter(p=>Array.isArray(p.presence.seen)&&p.presence.seen.includes(MYKEY));
+  const live=[MYKEY,...mutual.map(p=>p.peer)].sort(),i=live.indexOf(MYKEY),part=live[i%2?i-1:i+1];
+  ost.textContent='Searching for an opponent… '+heard.length+' other pilot'+(heard.length==1?'':'s')+' waiting'+(heard.length>mutual.length?' (connecting…)':'');
+  const sig=part?[MYKEY,part].sort().join(''):'';
+  if(sig!==w.sig){w.sig=sig;w.sigT=now}
+  w.to=sig&&now-w.sigT>=900?part:null;   // step 1: the same pair has held steady, so announce our choice
+  if(++w.hb%2==0)oroom.presence({x:W/2,t:w.hb,seen:heard.map(p=>p.peer),to:w.to}).catch(()=>{});
+  const pp=w.to&&mutual.find(p=>p.peer===part);
+  if(!pp||pp.presence.to!==MYKEY)return;   // step 2: commit only once the other pilot has chosen us too
+  const a=[MYKEY,part].sort(),code='PM'+a[0].slice(1)+a[1].slice(1),old=oroom;   // both sides derive the same private room name
+  let n=0;const iv=setInterval(()=>{if(++n>6){clearInterval(iv);old.leave().catch(()=>{});return}old.presence({x:W/2,t:++w.hb,seen:[part],to:part}).catch(()=>{})},500);   // keep announcing for a few seconds so the other side is sure to see our choice
+  oroom=null;wait={code,kind:'join',t:now,rq:1,from:part,hb:0};ost.textContent='Opponent found! Connecting…';
+  const nw=wait;(async()=>{if(wait!==nw)return;try{await enterRoom(code)}catch(e){if(wait===nw)cancelWait('Could not connect to the opponent. Searching again…',1)}})();
+}
 function cancelWait(text,requeue){
   clearInterval(wt);wt=0;try{oroom&&oroom.leave()}catch(e){}oroom=null;wait=null;offer=null;lst=requeue?'queue':'idle';
   pushLobby();if(text!==undefined)ost.textContent=text;syncBtns();psig='';lobbyTick();
+  if(requeue)setTimeout(()=>{if(lst=='queue'&&!wait&&!net.on)startQueue()},1500);   // restart the search after a short back-off
 }
 function roomCheck(){
   if(!wait||!oroom)return;
+  if(wait.kind=='q')return queueCheck();
+  wait.hb=(wait.hb||0)+1;if(wait.hb%2==0)oroom.presence({x:W/2,t:wait.hb}).catch(()=>{});
   const ps=oroom.peers().filter(p=>p.kind=='viewer'&&(p.sameTab||!p.isMe)),me=ps.find(p=>p.sameTab),pair=ps.slice().sort((a,b)=>a.peer<b.peer?-1:1).slice(0,2);
   if(me&&pair.length==2&&!pair.includes(me))return cancelWait('That room is full.');
   const opp=pair.find(p=>!p.sameTab);
   if(opp&&opp.presence.n&&me&&me.presence.n)return beginMatch(opp);
   if(wait.kind=='join'&&!wait.rt&&Date.now()-wait.t>8000){wait.rt=1;const c=wait.code,w=wait,old=oroom;oroom=null;(async()=>{try{await old.leave()}catch(e){}if(wait!==w)return;try{await enterRoom(c)}catch(e){if(wait===w)cancelWait('Could not join that room.')}})();return}
   const lim={mm:20000,ch:30000,join:wait.rq?16000:20000,inv:1e9}[wait.kind];
-  if(Date.now()-wait.t>lim){if(wait.kind=='mm'&&wait.to)bad[wait.to]=Date.now();if(wait.kind=='join'){dismissed[wait.code]=1;if(wait.from)bad[wait.from]=Date.now()}cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'&&!wait.rq?'Could not find that match. Ask your friend to keep their invite screen open.':undefined,wait.kind=='mm'||!!wait.rq)}
+  if(Date.now()-wait.t>lim){if(wait.kind=='mm'&&wait.to)bad[wait.to]=Date.now();if(wait.kind=='join'){dismissed[wait.code]=1;if(wait.from)bad[wait.from]=Date.now()}cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'&&!wait.rq?'Could not find that match. Ask your friend to keep their invite screen open.':wait.kind=='join'?'Opponent did not connect. Searching again…':undefined,wait.kind=='mm'||!!wait.rq)}
 }
 function beginMatch(opp){
   clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
-  wait=null;lst='busy';offer=null;pushLobby();$('chal').classList.remove('show');onl.classList.remove('show');start('online');
+  wait=null;lst='busy';offer=null;pushLobby();renderInv([]);onl.classList.remove('show');start('online');
 }
 function netLeave(){
   clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=gone?0:1;for(const k in bad)delete bad[k];
@@ -1192,7 +1252,7 @@ function netStep(){
   }
 }
 $('b3').onclick=openOnline;
-$('ofind').onclick=()=>{if(!RM){ost.textContent='Still connecting… try again in a moment.';return}if(wait)return;if(lst=='queue'){lst='idle';ost.textContent=''}else if(lst=='idle'){lst='queue';qs=Date.now();ost.textContent='Searching for an opponent…'}pushLobby();syncBtns();lobbyTick()};
+$('ofind').onclick=()=>{if(!RM){ost.textContent='Still connecting… try again in a moment.';return}if(lst=='queue'){cancelWait('Search cancelled.');return}if(wait||lst!='idle')return;startQueue()};
 $('oinv').onclick=()=>{
   if(wait)return cancelWait('');
   if(!RM||lst!='idle')return;
@@ -1212,7 +1272,7 @@ $('oshare').onclick=()=>{const l=inviteLink();if(navigator.share)navigator.share
 $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();if(!n||!RM||wait||lst!='idle')return;
   const p=RM.peers().find(p=>!p.isMe&&p.presence.n&&clean(p.presence.n).toLowerCase()==n);
   if(!p){ost.textContent='No pilot named “'+raw+'” is online right now. Use the invite link instead.';return}
-  if(p.presence.st!='idle'&&p.presence.st!='queue'){ost.textContent=clean(p.presence.n)+' is busy in a match.';return}
+  if(p.presence.st!='idle'){ost.textContent=clean(p.presence.n)+' is busy or searching for a match.';return}
   challenge(p)};
 addEventListener('pagehide',()=>{gone=1;if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
@@ -1226,7 +1286,7 @@ async function resetLobby(){
   RM=null;try{RM=await getRoom()}catch(e){RM=null}
   subLobby();if(RM)pushLobby();
 }
-let dcn=0,busyFix=0,rtry=0,incFrom=null;
+let dcn=0,busyFix=0,rtry=0;
 setInterval(async()=>{
   if(net.on||wait||busyFix||state!='menu')return;
   if(!RM){if(++rtry%2==0){busyFix=1;try{await resetLobby();lobbyTick()}finally{busyFix=0}}return}
@@ -1236,9 +1296,7 @@ setInterval(async()=>{
 },2000);
 (()=>{const c=(new URLSearchParams(location.search).get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');   // friend opened an invite link
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
-$('cacc').onclick=()=>{const c=incoming;$('chal').classList.remove('show');if(c){if(lst=='queue'){lst='idle'}acceptRoom(c,incFrom)}};
-$('cdec').onclick=()=>{if(incoming)dismissed[incoming]=1;incoming=null;$('chal').classList.remove('show')};
-$('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remove('show');$('chal').classList.remove('show');menu.classList.remove('hide')};
+$('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remove('show');menu.classList.remove('hide')};
 
 let last=performance.now(),acc=0;
 let alpha=0;
