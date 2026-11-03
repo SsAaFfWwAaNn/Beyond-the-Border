@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sky Duel</title>
+<title>Beyond the Border</title>
 <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
@@ -16,7 +16,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;background:var(--r
 #menu.hide{display:none}
 #mid{display:flex;flex-direction:column;align-items:center;gap:10px}
 .tag{font-size:.82rem;line-height:1.6;letter-spacing:.03em}
-h1{margin:0;font-size:3.2rem;font-weight:700;letter-spacing:.04em;line-height:1}
+h1{margin:0;font-size:clamp(1.8rem,9vw,2.4rem);font-weight:700;letter-spacing:.04em;line-height:1}
 .sub{font-size:1.15rem;margin-top:-4px}
 #msg{min-height:1.4em;font-weight:600;font-size:.95rem}
 button{font:inherit;font-weight:600;letter-spacing:.05em;padding:11px 22px;border-radius:3px;border:0;cursor:pointer;color:var(--cream);background:var(--ink);min-width:250px;transition:background .15s}
@@ -52,8 +52,8 @@ kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 4px 4px 0;borde
 </style></head>
 <body>
 <canvas id="bg"></canvas>
-<aside class="side l"><div class="pan"><div class="word">SKY<br>DUEL</div><div class="bn">সীমানার বাইরে</div><p>A two-sided dogfight over contested skies.</p><div class="stat"><span>BEST MISSION SCORE</span><b id="bestv">0</b></div></div></aside>
-<aside class="side r"><div class="pan"><h3>CONTROLS</h3><div class="row"><span>Bottom jet</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>Space</kbd></span></div><div class="row"><span>Top jet</span><span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd><kbd>Enter</kbd></span></div><div class="row"><span>Pause</span><span><kbd>Esc</kbd><kbd>P</kbd></span></div></div></aside>
+<aside class="side l"><div class="pan"><div class="word">BEYOND<br>THE BORDER</div><div class="bn">সীমানার বাইরে</div><p>A two-sided dogfight over contested skies.</p><div class="stat"><span>BEST MISSION SCORE</span><b id="bestv">0</b></div></div></aside>
+<aside class="side r"><div class="pan"><h3>CONTROLS</h3><div class="row"><span>P1</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>Space</kbd></span></div><div class="row"><span>P2</span><span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd><kbd>Enter</kbd></span></div><div class="row"><span>Pause</span><span><kbd>Esc</kbd><kbd>P</kbd></span></div></div></aside>
 <div id="wrap">
 <canvas id="c" width="480" height="720"></canvas>
 <button id="pbtn" aria-label="Pause"><i></i><i></i></button>
@@ -61,14 +61,14 @@ kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 4px 4px 0;borde
 <div id="menu">
 <div class="tag">A two-sided dogfight over contested skies.<br>Arena duels · endless swarm missions.</div>
 <div id="mid">
-<h1>SKY DUEL</h1>
+<h1>BEYOND THE BORDER</h1>
 <div class="sub">সীমানার বাইরে</div>
 <div id="msg">Choose your sortie</div>
 <button id="b0">MISSION · ENDLESS SWARM</button>
 <button id="b1">PLAYER VS BOT</button>
 <button id="b2">PLAYER VS PLAYER</button>
 </div>
-<small><b>Bottom jet</b> WASD + Space &nbsp;·&nbsp; <b>Top jet</b> Arrows + Enter<br>Mission and bot matches also accept arrows + Space/Enter/Z<br>Touch: drag anywhere to steer, your jet auto-fires<br>Two players on one phone: one finger each, in your own half<br>Pause: Esc or the pause button</small>
+<small><b>P1</b> WASD + Space &nbsp;·&nbsp; <b>P2</b> Arrows + Enter<br>Mission and bot matches also accept arrows + Space/Enter/Z<br>Touch: drag anywhere to steer, your jet auto-fires<br>Two players on one phone: one finger each, in your own half<br>Pause: Esc or the pause button</small>
 </div></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=480,H=720,DT=1/60;
@@ -76,7 +76,7 @@ const menu=document.getElementById('menu'),msg=document.getElementById('msg');
 const K={},pc=[mkP(),mkP()],ptr=pc[0],FONT="'Hind Siliguri',system-ui,sans-serif";
 const C={rose:'#b48c82',ink:'#182322',slate:'#343f49',grey:'#535962',cream:'#ecd9d0',ember:'#e9946a',brick:'#c4574a'};
 let pops=[],paused=false,rb=0,mode='mission',state='menu',P=[],bul=[],en=[],parts=[],queue=[],score=[0,0],timer=0,tt=0,scroll=0,pts=0,best=0,seed=7,mt=0,sp=1;
-try{best=+localStorage.getItem('skyduelBest')||0}catch(e){}
+try{best=+localStorage.getItem('beyondBorderBest')||0}catch(e){}
 const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const hs=(a,b)=>{let h=Math.imul(a*374761393+b*668265263,1274126177);h^=h>>>13;h=Math.imul(h,1103515245);return((h^h>>>16)>>>0)/4294967296};
 const cl=v=>Math.max(-1,Math.min(1,v));
@@ -149,7 +149,7 @@ function jet(x,y,dir,pal){
 }
 // ---------- game ----------
 function mk(i){return{i,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;evT=6;lastEv='';nextTrain=175;pops=[];rb=mode=='mission'?0:1.4;state='play'}
+function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play'}
 function start(m){mode=m;score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 function fire(p){if(p.cd>0)return;p.cd=.22;bul.push({x:p.x,y:p.y+p.dir*36,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}
@@ -182,11 +182,11 @@ function control(p){
   return !!a.f;
 }
 function hurt(q,d,x,y){
-  q.hp-=d;burst(x,y,C.ember,5);
+  q.hp-=d;if(q===P[0])lastHit=tt;burst(x,y,C.ember,5);
   if(q.hp>0)return;
   q.hp=0;q.alive=false;burst(q.x,q.y,C.ember,40);burst(q.x,q.y,C.cream,22);burst(q.x,q.y,C.ink,14);
   state='between';timer=2.4;
-  if(mode=='mission'){if(pts>best){best=pts;try{localStorage.setItem('skyduelBest',best)}catch(e){}}}
+  if(mode=='mission'){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}}
   else score[1-q.i]++;
 }
 // ---------- Mission: minions first, then helicopters, squads, ground units, strafing A-10s, and finally a train ----------
@@ -203,9 +203,42 @@ FM.wing={...FM.scout,fill:'#5b3036'};
 FM.trio={body:sym([[0,-34],[2.6,-26],[5,-12],[8,-4],[30,6],[34,16],[22,15],[12,16],[10,26],[16,32],[16,35],[8,34],[5,28],[0,30]]),can:sym([[0,-26],[2.2,-18],[2.4,-10],[0,-8]]),nz:9,ny:34,fill:'#6a3b2a',cc:'#ffd27a'};
 FM.cargo={body:sym([[0,-36],[3.5,-33],[7,-24],[9,-14],[9,-2],[42,14],[43,19],[9,14],[9,24],[22,31],[23,35],[9,34],[8,37],[3,39],[0,37]]),can:sym([[0,-30],[2.4,-24],[2.6,-18],[0,-16]]),nz:5,ny:38,fill:'#5f6652',cc:'#e8d9a8'};
 FM.dread={body:sym([[0,-32],[4,-22],[11,-10],[38,12],[40,20],[28,18],[14,22],[10,31],[0,27]]),can:sym([[0,-18],[3,-11],[3.4,-4],[0,-2]]),nz:8,ny:30,fill:'#2b1a1e',cc:'#fff1de'};
-// terrain helpers: the left desert coast and the rail line that follows it (same formula the terrain uses)
-const landL=wy=>100+Math.sin(wy*.0035)*40+Math.sin(wy*.009+1.3)*16+vn(wy,3)*12,landR=wy=>W-(72+Math.sin(wy*.0042+2)*18+Math.sin(wy*.012)*7+vn(wy,8)*8),trackX=wy=>landL(wy)*.55,gndX=(wy,r,sd)=>sd==2?landL(wy)+(landR(wy)-landL(wy))*r:sd?landR(wy)+(W-landR(wy))*r:landL(wy)*r;
-function railA(){return mode=='mission'&&state!='menu'?Math.max(0,Math.min(1,(mt-140)/25)):0}
+// terrain helpers: the left desert coast and the rail line that hugs it (same formula the terrain uses)
+const landL=wy=>100+Math.sin(wy*.0035)*40+Math.sin(wy*.009+1.3)*16+vn(wy,3)*12,landR=wy=>W-(72+Math.sin(wy*.0042+2)*18+Math.sin(wy*.012)*7+vn(wy,8)*8),gndX=(wy,r,sd)=>sd==2?landL(wy)+(landR(wy)-landL(wy))*r:sd?landR(wy)+(W-landR(wy))*r:landL(wy)*r;
+const trackX=wy=>(landL(wy-40)+landL(wy-20)+landL(wy)+landL(wy+20)+landL(wy+40))/5-30;   // runs ~30px inland of the shoreline, following its bends but smoothed like a real rail line
+// The rail starts at world-y railS (the "head") and runs up the map from there, forever. Its head swings in from beyond the left edge
+// (a smooth curve, as if the line came from the left corner), then settles onto the shoreline. RB holds that entry curve.
+let railS=null,RB=[];const RL=240;
+function layRail(){
+  railS=Math.ceil((scroll+80)/15)*15;const S=railS,E=S+RL,m=(trackX(E+6)-trackX(E-6))/12,nl=Math.hypot(m,1);
+  const P0=[-70,S],P1=[-70+.898*120,S+.439*120],P3=[trackX(E),E],P2=[P3[0]-m/nl*105,E-1/nl*105],dense=[];
+  for(let i=0;i<=300;i++){const t=i/300,u=1-t,k=[u*u*u,3*u*u*t,3*u*t*t,t*t*t];
+    let x=k[0]*P0[0]+k[1]*P1[0]+k[2]*P2[0]+k[3]*P3[0];const wy=k[0]*P0[1]+k[1]*P1[1]+k[2]*P2[1]+k[3]*P3[1];
+    dense.push({x:Math.max(-70,Math.min(x,landL(wy)-12)),wy})}   // never let the curve drift into the water
+  const pts=[];let acc=0,next=0;
+  for(let i=0;i<dense.length;i++){if(i)acc+=Math.hypot(dense[i].x-dense[i-1].x,dense[i].wy-dense[i-1].wy);if(i==0||acc>=next+5){pts.push(dense[i]);next=acc}}
+  const lastD=dense[dense.length-1];if(lastD.wy-pts[pts.length-1].wy<2)pts.pop();pts.push(lastD);RB=[];
+  for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)],dx=b.x-a.x,dy=-(b.wy-a.wy),l=Math.hypot(dx,dy)||1;RB.push({x:pts[i].x,wy:pts[i].wy,tx:dx/l,ty:dy/l,i})}
+}
+function railX(wy){   // x of the track at world-y wy (used by the train)
+  if(railS===null||!RB.length)return -70;
+  if(wy<=railS)return RB[0].x;
+  if(wy>=railS+RL)return trackX(wy);
+  let lo=0,hi=RB.length-1;while(hi-lo>1){const m=(lo+hi)>>1;RB[m].wy<=wy?lo=m:hi=m}
+  const a=RB[lo],b=RB[hi];return a.x+(b.x-a.x)*(wy-a.wy)/((b.wy-a.wy)||1);
+}
+function drawRail(){
+  const pts=[];
+  for(const q of RB){const y=scroll-q.wy;if(y<-24||y>H+24)continue;pts.push({x:q.x,y,tx:q.tx,ty:q.ty,s:q.i%3==0})}
+  const E=railS+RL;
+  for(let wy=Math.max(E,Math.floor((scroll-H-24)/5)*5);wy<=scroll+24;wy+=5){const d=(trackX(wy+5)-trackX(wy-5))/10,l=Math.hypot(d,1);pts.push({x:trackX(wy),y:scroll-wy,tx:d/l,ty:-1/l,s:(wy/5)%3==0})}
+  if(pts.length<2)return;
+  ctx.lineCap='butt';ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(60,50,48,.2)';ctx.lineWidth=15;ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();   // ballast bed
+  ctx.strokeStyle='rgba(84,66,56,.8)';ctx.lineWidth=2.4;ctx.beginPath();for(const p of pts)if(p.s){const nx=-p.ty*7,ny=p.tx*7;ctx.moveTo(p.x-nx,p.y-ny);ctx.lineTo(p.x+nx,p.y+ny)}ctx.stroke();   // sleepers
+  ctx.strokeStyle='rgba(44,36,34,.9)';ctx.lineWidth=1.8;
+  for(const o of[-3.2,3.2]){ctx.beginPath();pts.forEach((p,i)=>{const x=p.x-p.ty*o,y=p.y+p.tx*o;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}   // rails
+}
 
 // ---------- drawing ----------
 function foeJet(x,y,e){
@@ -258,6 +291,38 @@ function seaJet(x,y,e){   // patrol boat and ship: bow toward the player, wake b
       ctx.strokeStyle='#1b1f24';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(Math.cos(a)*16,oy+Math.sin(a)*16);ctx.stroke();
     }
   }
+  ctx.restore();
+}
+function droneJet(x,y,e){   // small dart-shaped suicide drone, nose toward its heading, warhead glowing
+  ctx.save();ctx.translate(x,y);ctx.rotate(e.ang-Math.PI/2);
+  const f=6+Math.random()*5;ctx.fillStyle='rgba(233,148,106,.85)';ctx.beginPath();ctx.moveTo(-3,-12);ctx.lineTo(0,-12-f);ctx.lineTo(3,-12);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#6b2a2a';ctx.beginPath();ctx.moveTo(0,20);ctx.lineTo(5,6);ctx.lineTo(15,-14);ctx.lineTo(5,-9);ctx.lineTo(0,-13);ctx.lineTo(-5,-9);ctx.lineTo(-15,-14);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(236,217,208,.35)';ctx.lineWidth=1;ctx.stroke();
+  const g=.55+.45*Math.sin(e.age*14+e.ph);ctx.fillStyle='rgba(233,148,106,'+g+')';ctx.beginPath();ctx.arc(0,14,3.4,0,6.28);ctx.fill();
+  ctx.fillStyle='#231a1b';ctx.fillRect(-1.6,-4,3.2,10);
+  ctx.restore();
+}
+function bigShip(x,y,e){   // battleship and aircraft carrier: bow toward the player, wake behind
+  const p=P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?96:72,Wd=car?34:16;
+  ctx.save();ctx.translate(x,y);ctx.lineCap='round';
+  ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=2.4;
+  for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*(Wd-2),L-30);ctx.lineTo(sd*(Wd+14)+fl,-L-50);ctx.stroke()}
+  ctx.fillStyle='rgba(24,35,34,.22)';ctx.fillRect(-Wd+8,-L+10,Wd*2,L*2-6);
+  ctx.strokeStyle='rgba(236,217,208,.45)';ctx.lineWidth=1;
+  ctx.fillStyle=car?'#3c434c':'#3a4149';ctx.beginPath();ctx.moveTo(0,L+14);ctx.lineTo(Wd,L-30);ctx.lineTo(Wd,-L);ctx.lineTo(-Wd,-L);ctx.lineTo(-Wd,L-30);ctx.closePath();ctx.fill();ctx.stroke();
+  if(car){
+    ctx.fillStyle='#4d555f';ctx.fillRect(-Wd+4,-L+6,Wd*2-8,L*2-34);
+    ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.4;ctx.setLineDash([9,7]);ctx.beginPath();ctx.moveTo(-5,-L+12);ctx.lineTo(-5,L-36);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#2f353c';ctx.fillRect(Wd-16,-22,12,40);ctx.fillStyle='#e8d9a8';ctx.fillRect(Wd-14,-14,8,2);
+    const rem=e.nl-e.ln;   // planes still parked on the deck
+    for(let i=0;i<rem;i++){const px=-17+(i%2)*14,py=-L+24+i*19;ctx.fillStyle='#231a1b';ctx.beginPath();ctx.moveTo(px,py+9);ctx.lineTo(px-7,py-4);ctx.lineTo(px-1.5,py-3);ctx.lineTo(px,py-9);ctx.lineTo(px+1.5,py-3);ctx.lineTo(px+7,py-4);ctx.closePath();ctx.fill()}
+    for(const gx of[-24,24]){const gy=L-44,a=Math.atan2(p.y-(y+gy),p.x-(x+gx));ctx.fillStyle='#262b31';ctx.beginPath();ctx.arc(gx,gy,5,0,6.28);ctx.fill();ctx.strokeStyle='#262b31';ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx+Math.cos(a)*13,gy+Math.sin(a)*13);ctx.stroke()}
+  }else{
+    ctx.fillStyle='#4f5761';ctx.fillRect(-Wd+3,-L+6,Wd*2-6,L*2-30);
+    ctx.fillStyle='#2f353c';ctx.fillRect(-10,-16,20,26);ctx.fillStyle='#e8d9a8';ctx.fillRect(-7,-9,14,2);
+    for(const oy of[-50,-28,26,48]){const a=Math.atan2(p.y-(y+oy),p.x-x);ctx.fillStyle='#2b3036';ctx.beginPath();ctx.arc(0,oy,7,0,6.28);ctx.fill();ctx.strokeStyle='#1b1f24';ctx.lineWidth=3.6;ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(Math.cos(a)*19,oy+Math.sin(a)*19);ctx.stroke()}
+  }
+  ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(-Wd+3,-L+6,Wd*2-6,L*2-30);
   ctx.restore();
 }
 const STAR=(()=>{const p=new Path2D();for(let i=0;i<10;i++){const r=i%2?13:32,a=-Math.PI/2+i*Math.PI/5;i?p.lineTo(Math.cos(a)*r,Math.sin(a)*r):p.moveTo(Math.cos(a)*r,Math.sin(a)*r)}p.closePath();return p})();
@@ -324,80 +389,64 @@ function trainSeg(x,y,e){   // engine + gun carts running up the track beside yo
 function drawEnemy(e){
   const x=ix(e,'x'),y=ix(e,'y'),t=e.ty;
   if(t=='heli')heliJet(x,y,e);
-  else if(e.tr)trainSeg(x,y,e);else if(e.sea)seaJet(x,y,e);else if(e.gnd)gndJet(x,y,e);else if(t=='starfield')starJet(x,y,e);else foeJet(x,y,e);
+  else if(e.tr)trainSeg(x,y,e);else if(t=='oil')oilRig(x,y,e);else if(t=='kamikaze')droneJet(x,y,e);else if(e.sea)(t=='battle'||t=='carrier'?bigShip:seaJet)(x,y,e);else if(e.gnd)gndJet(x,y,e);else if(t=='starfield')starJet(x,y,e);else foeJet(x,y,e);
 }
 
 // ---------- spawning: a few hovering minions form the core, passing events and ground units add variety ----------
-let evT=6,lastEv='',nextTrain=175;
-const HOV=['minion','minion2','heli','scout','striker','trio','dread'];
-function evPick(){
-  const o=[];
-  if(mt>14)o.push('cargo');
-  if(mt>28)o.push('turret','turret');
-  if(mt>36)o.push('tank','tank');
-  if(mt>50)o.push('squad','squad');
-  if(mt>60)o.push('truck');
-  if(mt>70)o.push('strafe');
-  if(mt>130)o.push('strafe','truck');
-  if(mt>25)o.push('boat','boat');
-  if(mt>55)o.push('ship');
-  if(mt>90)o.push('star');
-  const c=o.filter(x=>x!=lastEv);
-  return c.length?c[Math.floor(rnd()*c.length)]:'';
-}
-function pickType(){
-  const r=rnd(),cnt=t=>en.filter(e=>e.ty==t).length;
-  if(mt>130&&cnt('dread')<1&&r>.93)return'dread';
-  if(mt>100&&cnt('trio')<2&&r>.84)return'trio';
-  if(mt>120&&r>.9)return'striker';
-  if(mt>85&&r>.78)return'scout';
-  if(mt>30&&cnt('heli')<(mt>140?2:1)&&r>.6)return'heli';
-  if(mt>18&&r>.4)return'minion2';
-  return'minion';
-}
-function spawnOne(){
-  const ty=pickType(),d=FT[ty];let bx=W/2,bd=-1;
-  for(let i=0;i<5;i++){const x=70+rnd()*(W-140),m=Math.min(999,...en.filter(e=>!e.gnd).map(e=>Math.abs(e.x-x)));if(m>bd){bd=m;bx=x}}
-  bx=Math.max(105,Math.min(W-105,bx));
-  const sy=({minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100})[ty]+rnd()*50;
-  en.push({ty,x:bx,x0:bx,tx:bx,y:-50,sy,age:0,cd:1.4+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:rnd()*6.28,n:0,alt:0,rc:0});
-}
-function squad(){   // light fighters in a V fly a near-straight line down the screen; clear them all for a bonus
-  const n=Math.min(3+Math.floor(mt/70),5),g={n,k:0,gx:110+rnd()*(W-220),ph:rnd()*6.28,bonus:300,label:'SQUAD'};
+let fires=[],rings=[],pickups=[];   // fires: burning oil fields left behind by destroyed rigs
+function squad(gx,nn){   // light fighters in a V fly a near-straight line down the screen; clear them all for a bonus
+  const n=nn||Math.min(3+Math.floor(mt/70),5),g={n,k:0,gx:gx===undefined?110+rnd()*(W-220):gx,ph:rnd()*6.28,bonus:300,label:'SQUAD'};
   for(let i=0;i<n;i++){const j=(i+1)>>1,s=i%2?1:-1;en.push({ty:'wing',g,ox:i?s*j*46:0,oy:i?-j*38:0,x:g.gx,y:-60,age:0,cd:1.6+rnd()*1.6,hp:18,mhp:18,r:18,pts:120,rc:0,ph:0,n:0,alt:0})}
 }
 function strafe(){   // A-10 sweeps in from the side at your height and fires once while passing (blinking marker warns you first)
   const p=P[0],d=rnd()<.5?1:-1;
   en.push({ty:'a10',x:d>0?-60:W+60,y:Math.max(240,Math.min(H-170,p.y+(rnd()-.5)*140)),d,rot:d*Math.PI/2,warn:1.1,fired:0,age:0,hp:36,mhp:36,r:21,pts:300,rc:0,ph:0,cd:0,n:0,alt:0});
 }
-function cargo(){   // slow cargo plane on a dead-straight line: harmless, a bonus target
+function cargo(sup){   // slow cargo plane on a dead-straight line: harmless, a bonus target
   const x=90+rnd()*(W-180);
-  en.push({ty:'cargo',x,x0:x,y:-80,age:0,hp:50,mhp:50,r:34,pts:250,rc:0,ph:0,cd:0,n:0,alt:0});
+  if(sup)pop(x,40,'SUPPLY DROP');en.push({ty:'cargo',sup:sup?1:0,x,x0:x,y:-80,age:0,hp:50,mhp:50,r:34,pts:250,rc:0,ph:0,cd:0,n:0,alt:0});
 }
-function ground(ty){   // ground units appear on the desert and drive toward you along the coast
-  const d=GD[ty],wy=scroll+50,ratio=.45+rnd()*.4,sd=rnd()<.5?1:0;
+function ground(ty,sd,off){   // ground units appear on the desert and drive toward you along the coast
+  const d=GD[ty],wy=scroll+50+(off||0),ratio=.45+rnd()*.4;if(sd===undefined)sd=railS!==null?1:(rnd()<.5?1:0);
   en.push({ty,gnd:1,wy,ratio,sd,x:gndX(wy,ratio,sd),y:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,rc:0,ph:0,n:0,alt:0});
 }
-const SD={boat:{hp:30,r:16,pts:200,v:42},ship:{hp:100,r:26,pts:500,v:12}};
-function sea(ty){   // boats and ships sail down the gulf
-  const d=SD[ty],wy=scroll+50,ratio=.2+rnd()*.6;
-  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,rc:0,ph:0,n:0,alt:0});
+const SD={boat:{hp:30,r:16,pts:200,v:42},ship:{hp:100,r:26,pts:500,v:12},battle:{hp:260,r:36,pts:900,v:10,hw:30,hh:72},carrier:{hp:480,r:44,pts:1800,v:0,hw:36,hh:96}};
+function sea(ty,off){   // boats and ships sail down the gulf; the battleship and carrier are big and use a long hit box
+  const d=SD[ty],big=ty=='battle'||ty=='carrier',wy=scroll+50+(off||0),ratio=big?.4+rnd()*.2:.2+rnd()*.6;
+  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:ty=='carrier'?-140:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,hw:d.hw,hh:d.hh,nl:ty=='carrier'?3+Math.floor(rnd()*3):0,ln:0,lt:5,rc:0,ph:0,n:0,alt:0});
 }
-function starfield(){   // star plane glides in toward a random spot near the centre, sprays random shots while spinning, then drifts away by a side
-  const tx=W/2+(rnd()-.5)*170,gy=H*.26+rnd()*H*.16,x0=Math.max(60,Math.min(W-60,tx+(rnd()-.5)*220));
+function oilField(){   // two or three oil rigs sit in the gulf; blowing one up can set off its neighbours
+  const n=2+(rnd()<.5?1:0),r0=.3+rnd()*.4;
+  for(let i=0;i<n;i++){const wy=scroll+50+i*105,ratio=Math.max(.25,Math.min(.75,r0+(rnd()-.5)*.3));
+    en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:150,mhp:150,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
+}
+function kamikaze(nn){   // suicide drones dive in from the top and home in on you
+  const n=nn||(1+(mt>110?1:0)+(mt>180?1:0)),x0=70+rnd()*(W-140);
+  for(let i=0;i<n;i++)en.push({ty:'kamikaze',x:Math.max(40,Math.min(W-40,x0+(i-(n-1)/2)*70)),y:-40-i*50,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0});
+}
+function starfield(slot,n){   // star plane glides in toward a spot near the centre (spread out when several come together), sprays random shots while spinning, then drifts away by a side
+  n=n||1;const tx=Math.max(70,Math.min(W-70,n>1?W/2+((slot||0)-(n-1)/2)*(n==3?140:170)+(rnd()-.5)*30:W/2+(rnd()-.5)*170)),gy=H*.26+rnd()*H*.16,x0=Math.max(60,Math.min(W-60,tx+(rnd()-.5)*220));
   en.push({ty:'starfield',x:x0,y:-60,x0,y0:-60,tx,gy,u:0,st:0,t1:0,ang:rnd()*6.28,w:2,vx:0,age:0,cd:0,n:0,dir:0,hp:70,mhp:70,r:24,pts:500,rc:0,ph:0,alt:0});
 }
 function spawnTrain(){   // appears from behind, runs up the track beside you, then keeps pace and stays until destroyed
   const n=Math.min(3+Math.floor(Math.max(0,mt-175)/150),6),wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500,label:'TRAIN DESTROYED'};
   for(let i=0;i<=n;i++){const eng=i==0,wy=wy0-i*58,hp=eng?130:70;
-    en.push({ty:eng?'trainE':'trainC',gnd:1,tr:1,wy,x:trackX(wy),y:H+70+i*58,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:eng?23:21,pts:eng?600:300,g,rc:0,ph:0,n:0,alt:0})}
+    en.push({ty:eng?'trainE':'trainC',gnd:1,tr:1,wy,x:railX(wy),y:H+70+i*58,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:eng?23:21,pts:eng?600:300,g,rc:0,ph:0,n:0,alt:0})}
 }
 
 // ---------- combat ----------
 function pop(x,y,s){pops.push({x,y,s,t:1.2})}
 function killE(e){
   e.dead=1;pts+=e.pts;burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);
-  if(e.ty=='cargo')pop(e.x,e.y-26,'CARGO +'+e.pts);
+  if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
+  if(e.ty=='cargo'){pop(e.x,e.y-26,'CARGO +'+e.pts);if(rnd()<(e.sup?.55:.3))pickups.push({x:e.x,y:e.y,t:0})}   // rarely drops a health pickup
+  if(e.oil){   // oil rig explodes: area damage now, then the slick burns for a while
+    const R=115,q=P[0];fires.push({x:e.x,wy:e.wy,t:0,life:14,tk:0});pop(e.x,e.y-30,'OIL RIG +'+e.pts);
+    for(let i=0;i<4;i++)burst(e.x+(rnd()-.5)*50,e.y+(rnd()-.5)*50,C.ember,18);
+    if(q&&q.alive){const d=Math.hypot(q.x-e.x,q.y-e.y);if(d<R)hurt(q,Math.round(30*(1-d/R*.6)),q.x,q.y)}
+    for(const o of en)if(!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<R){o.hp-=o.oil?90:60;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
+  }
+  if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}pop(e.x,e.y-e.hh-12,(e.ty=='carrier'?'CARRIER +':'BATTLESHIP +')+e.pts)}
   if(e.g&&++e.g.k==e.g.n){pts+=e.g.bonus;pop(e.x,e.y-26,e.g.label+' +'+e.g.bonus)}
 }
 function shot(e,a,s,d,ox,oy){bul.push({x:e.x+(ox||0),y:e.y+(oy===undefined?16:oy),vx:Math.cos(a)*s,vy:Math.sin(a)*s,o:2,d,tr:[]})}
@@ -419,34 +468,259 @@ function fireN(e,p){
   else if(t=='dread'){for(let i=-2;i<=2;i++)shot(e,a+i*.17,175,9);e.cd=2.7}           // heavy: five-shot spread
   else if(t=='boat'){shot(e,a,200,8,0,16);e.cd=1.9}                                     // patrol boat: one aimed shot
   else if(t=='ship'){const oy=[-12,6,24][e.n];shot(e,Math.atan2(p.y-(e.y+oy),p.x-e.x),205,8,0,oy);e.n=(e.n+1)%3;e.cd=e.n?.4:2.8}   // ship: three aimed shots, one gun after another
+  else if(t=='battle'){const oy=[-50,-28,26,48][e.n];shot(e,Math.atan2(p.y-(e.y+oy),p.x-e.x),215,9,0,oy);e.n=(e.n+1)%4;e.cd=e.n?.26:2.7}   // battleship: four heavy aimed shots, one gun after another
+  else if(t=='carrier'){const gx=e.n?24:-24,gy=52;shot(e,Math.atan2(p.y-(e.y+gy),p.x-(e.x+gx)),205,8,gx,gy);e.n=(e.n+1)%2;e.cd=e.n?.3:2.3}   // carrier: deck guns fire left, then right
   else if(t=='trainC'){shot(e,a,200,8,0,0);e.cd=2.6+rnd()*.8}                          // cart guns: aimed
   else{for(let i=-1;i<=1;i++)shot(e,a+i*.28,175,8,0,0);e.cd=3.2}                       // engine: 3-way fan
 }
-function mission(){
-  mt+=DT;sp-=DT;evT-=DT;
-  const p=P[0],cnt=t=>en.filter(e=>e.ty==t).length,hasTrain=en.some(e=>e.tr);
-  const hov=en.filter(e=>HOV.includes(e.ty)).length,cap=Math.min(2+Math.floor(mt/60),4)-(hasTrain?1:0);
-  if(sp<=0&&hov<cap){spawnOne();sp=Math.max(1.6,3.6-mt*.01)}
-  if(evT<=0){
-    const k=evPick();let ok=false;
-    if(k=='cargo'&&!cnt('cargo')){cargo();ok=true}
-    else if(k=='squad'&&!cnt('wing')){squad();ok=true}
-    else if(k=='strafe'&&cnt('a10')<(mt>130?2:1)){strafe();ok=true}
-    else if((k=='turret'||k=='tank'||k=='truck')&&cnt(k)<(k=='truck'?1:2)&&en.filter(e=>e.gnd&&!e.tr&&!e.sea).length<3){ground(k);ok=true}
-    else if((k=='boat'||k=='ship')&&cnt(k)<(k=='boat'?2:1)&&en.filter(e=>e.sea).length<3){sea(k);ok=true}
-    else if(k=='star'&&!cnt('starfield')){starfield();ok=true}
-    if(ok){lastEv=k;evT=Math.max(4,7.5-mt*.012)+rnd()*2.5}else evT=1.5;
+function stepFires(){
+  const p=P[0];
+  for(const o of pickups){o.t+=DT;o.y+=55*DT;o.x+=Math.sin(o.t*2.2)*14*DT;
+    if(p&&p.alive&&Math.hypot(p.x-o.x,p.y-o.y)<26){o.dead=1;p.hp=Math.min(100,p.hp+35);pop(o.x,o.y-20,'HEALTH +35');burst(o.x,o.y,C.cream,12)}}
+  pickups=pickups.filter(o=>!o.dead&&o.y<H+30);
+  for(const q of rings)q.t+=DT;rings=rings.filter(q=>q.t<.5);
+  for(const f of fires){f.t+=DT;f.tk-=DT;
+    if(f.t>1.2&&f.t<f.life&&f.tk<=0&&p&&p.alive&&Math.hypot(p.x-f.x,p.y-(scroll-f.wy))<46){hurt(p,5,p.x,p.y);f.tk=.45}}
+  fires=fires.filter(f=>f.t<f.life&&scroll-f.wy<H+90);
+}
+function drawPickups(){
+  for(const o of pickups){const g=.5+.5*Math.sin(o.t*6);
+    ctx.fillStyle='rgba(236,217,208,'+(.18+.14*g)+')';ctx.beginPath();ctx.arc(o.x,o.y,17+g*3,0,6.28);ctx.fill();
+    ctx.fillStyle=C.cream;ctx.beginPath();ctx.arc(o.x,o.y,11,0,6.28);ctx.fill();ctx.strokeStyle='rgba(24,35,34,.6)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=C.brick;ctx.fillRect(o.x-2.6,o.y-7,5.2,14);ctx.fillRect(o.x-7,o.y-2.6,14,5.2)}
+}
+function drawFires(){
+  for(const q of rings){const k=q.t/.5;ctx.strokeStyle='rgba(236,217,208,'+.85*(1-k)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(q.x,q.y,80*k,0,6.28);ctx.stroke();ctx.fillStyle='rgba(233,148,106,'+.35*(1-k)+')';ctx.fill()}
+  for(const f of fires){
+    const y=scroll-f.wy,x=f.x,fade=Math.min(1,(f.life-f.t)/3),t=f.t;
+    ctx.fillStyle='rgba(20,16,20,'+.38*fade+')';ctx.beginPath();ctx.ellipse(x,y,52+Math.min(30,t*9),44+Math.min(26,t*8),0,0,6.28);ctx.fill();
+    if(t<1.2){const k=t/1.2;ctx.fillStyle='rgba(233,148,106,'+.55*(1-k)+')';ctx.beginPath();ctx.arc(x,y,115*k,0,6.28);ctx.fill();
+      ctx.strokeStyle='rgba(236,217,208,'+.8*(1-k)+')';ctx.lineWidth=3;ctx.stroke()}
+    if(t>1){const k=Math.min(1,(t-1)/1.5)*fade;
+      for(let i=0;i<5;i++){const yy=y-((tt*34+i*21)%90),a=.3*k*(1-((tt*34+i*21)%90)/90);ctx.fillStyle='rgba(52,46,50,'+a+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.3+i*2)*12,yy,10+((tt*34+i*21)%90)*.18,0,6.28);ctx.fill()}
+      for(let i=0;i<11;i++){const a=i*2.4+Math.sin(tt*2+i)*.5,rr=8+(i%4)*8,ox=Math.cos(a)*rr,oy=Math.sin(a)*rr*.8-Math.abs(Math.sin(tt*9+i*1.7))*5,s=(7+(i%3)*3)*k*(.8+.4*Math.sin(tt*12+i*3));
+        ctx.fillStyle='rgba(233,148,106,'+.7*k+')';ctx.beginPath();ctx.arc(x+ox,y+oy,s,0,6.28);ctx.fill();
+        ctx.fillStyle='rgba(242,207,138,'+.8*k+')';ctx.beginPath();ctx.arc(x+ox*.8,y+oy*.8-1,s*.5,0,6.28);ctx.fill()}}
   }
-  if(!hasTrain&&mt>=nextTrain){spawnTrain();nextTrain=mt+160}
+}
+function oilRig(x,y,e){   // top-down offshore rig: deck, legs, tanks, derrick, flare stack
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='rgba(20,16,20,.3)';ctx.beginPath();ctx.ellipse(0,2,50,42,0,0,6.28);ctx.fill();
+  ctx.fillStyle='rgba(24,35,34,.25)';ctx.fillRect(-20,-18,48,48);
+  ctx.fillStyle='#2b3036';for(const sx of[-1,1])for(const sy of[-1,1]){ctx.beginPath();ctx.arc(sx*22,sy*22,5,0,6.28);ctx.fill()}
+  ctx.fillStyle='#474f58';ctx.fillRect(-24,-24,48,48);ctx.strokeStyle='rgba(236,217,208,.4)';ctx.lineWidth=1;ctx.strokeRect(-24,-24,48,48);
+  ctx.fillStyle='#5d656f';ctx.beginPath();ctx.arc(-11,12,7,0,6.28);ctx.fill();ctx.stroke();ctx.beginPath();ctx.arc(8,14,6,0,6.28);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#22272d';ctx.lineWidth=1.6;ctx.strokeRect(-14,-17,16,16);ctx.beginPath();ctx.moveTo(-14,-17);ctx.lineTo(2,-1);ctx.moveTo(2,-17);ctx.lineTo(-14,-1);ctx.stroke();
+  ctx.fillStyle='#2b3036';ctx.fillRect(12,-20,6,14);
+  const fl=3+Math.random()*2;ctx.fillStyle='#e9946a';ctx.beginPath();ctx.arc(15,-23,fl,0,6.28);ctx.fill();ctx.fillStyle='#f2cf8a';ctx.beginPath();ctx.arc(15,-23,fl*.5,0,6.28);ctx.fill();
+  if(Math.sin(e.age*3+e.ph)>.3){ctx.fillStyle='#c4574a';ctx.beginPath();ctx.arc(-19,-19,2,0,6.28);ctx.fill()}
+  ctx.restore();
+}
+
+// ---------- spawn director ----------
+// Every enemy has a threat cost. The director keeps the total "load" of everything alive under a cap that grows with heat
+// (time survived, nudged up when you play clean and down when you are hurting). Once the sky has been quiet for a moment it buys
+// the next encounter from a library of formations, weighted for variety and for this run's random favourites.
+// Ground, sea and cargo run on their own lanes. Each stage ends in a milestone set piece, then a breather with a supply drop.
+const COST={minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:4,striker:3.2,trio:3.8,dread:9,kamikaze:1.2,a10:2,starfield:5};
+const SYB={minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100};
+let D={stage:1,bn:null},dq=[],lastHit=-99;
+const hasT=t=>en.some(e=>e.ty==t&&!e.dead);
+const L=(n,f)=>Array.from({length:n},(_,i)=>f(i));
+const U=(d,ty,x,sy,o)=>({d,ty,x,sy,o}),X=(d,c,f)=>({d,c,f});   // timed hovering unit / custom spawn with its own cost
+const wpick=a=>{let t=0;for(const o of a)t+=o.w;let r=rnd()*t;for(const o of a){r-=o.w;if(r<=0)return o}return a[a.length-1]};
+function hov(ty,x,sy,o){   // one hovering fighter in a formation slot (am/fq/ph make a formation sway together)
+  o=o||{};const d=FT[ty];
+  en.push({ty,x,x0:x,tx:x,y:-50,sy:sy===undefined?SYB[ty]+rnd()*40:sy,age:0,cd:1.2+rnd()*1,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:o.ph===undefined?rnd()*6.28:o.ph,am:o.am,fq:o.fq,n:0,alt:0,rc:0});
+}
+function grade(){const r=rnd();return mt<45?'minion':mt<100?(r<.5?'minion':'minion2'):(r<.25?'minion':'minion2')}
+function starItems(n){const seq=n>1&&rnd()>=.5;return L(n,i=>seq?X(i*6.5,5,()=>starfield(0,1)):X(0,5,()=>starfield(i,n)))}
+function dirNew(){
+  const tg=['form','squad','drone','heavy','star'],a=tg[Math.floor(rnd()*5)];let b=a;while(b==a)b=tg[Math.floor(rnd()*5)];
+  D={stage:1,stT:0,cool:1.6,calm:0,n:0,hist:[],tags:[],fav:[a,b],ms:null,msId:0,msHist:[],brk:0,sup:0,adapt:0,fT:7,
+     gT:26+rnd()*6,sT:24+rnd()*8,cT:17+rnd()*8,oT:48+rnd()*14,bsT:92+rnd()*30,railAt:118+rnd()*22,trainDone:0,
+     bn:{t:2.6,T:2.6,s:'STAGE 1',sub:'',w:0}};
+}
+// heat: 0 for the first ~20 s, then +1 about every 48 s; clean flying pushes it up a little, low health eases it off
+const heat=()=>Math.max(0,Math.min(8.5,(mt-18)/48+D.adapt));
+function capA(){const h=heat(),major=en.some(e=>e.tr||e.ty=='carrier'||e.ty=='battle'||e.ty=='dread');return(Math.min(12.5,4.8+2*h)+Math.max(0,h-5)*.6)*(major?.75:1)}
+function loadA(){let s=0;for(const e of en){if(e.dead||e.gnd)continue;const c=COST[e.ty];if(c)s+=c*(.45+.55*e.hp/e.mhp)*((e.ty=='minion'||e.ty=='minion2')?1+Math.max(0,heat()-3)*.15:1)}for(const q of dq)s+=q.c||0;return s}
+function adaptStep(){
+  if(mt<30){D.adapt=0;return}
+  const p=P[0];
+  if(p.hp<40)D.adapt=Math.max(-.7,D.adapt-.05*DT);
+  else if(tt-lastHit>14&&p.hp>=65)D.adapt=Math.min(.9,D.adapt+.016*DT);
+  else D.adapt-=Math.sign(D.adapt)*.01*DT;
+}
+const itemCost=it=>it.reduce((s,i)=>s+(i.c===undefined?COST[i.ty]:i.c),0);
+function spawnItem(it,ms){
+  const n0=en.length;
+  if(it.f)it.f();else hov(it.ty,it.x,it.sy,it.o);
+  for(let i=n0;i<en.length;i++){en[i].enc=D.n;if(ms){en[i].ms=ms;if(D.ms)D.ms.n++}}
+}
+function launch(items,ms){for(const it of items){if(it.d>0)dq.push({t:it.d,it,c:it.c===undefined?COST[it.ty]:it.c,ms});else spawnItem(it,ms)}}
+// ----- encounter library (formations) -----
+const ENC=[
+ {id:'solo',tag:'form',minT:0,w:0,make:()=>[U(0,'minion',W/2,125,{am:30,fq:.5,ph:0})]},   // opening only
+ {id:'twin',tag:'form',minT:0,w:3,make(){const g=grade();return[U(0,g,W/2-95,115,{am:55,fq:.55,ph:0}),U(0,g,W/2+95,115,{am:55,fq:.55,ph:Math.PI})]}},
+ {id:'line3',tag:'form',minT:0,w:3,make(){const g=grade();return L(3,i=>U(0,g,W/2+(i-1)*115,125,{am:30,fq:.5,ph:0}))}},
+ {id:'drip',tag:'form',minT:8,w:3,make(){const g=grade();return L(4+(mt>70?1:0),i=>U(i*.7,g,W/2+(i%2?1:-1)*125,95+i*30,{am:40,fq:.55,ph:i*.8}))}},
+ {id:'cross',tag:'form',minT:12,w:2,make(){const g=grade();return L(3,i=>U(i*.5,g,W/2+(i-1)*70,100+i*34,{am:75,fq:.5,ph:i%2?Math.PI:0}))}},
+ {id:'squad',tag:'squad',minT:20,w:3,ok:()=>!hasT('wing'),make(){const n=Math.min(3+Math.floor(mt/70),5);return[X(0,n*1.1,()=>squad(undefined,n))]}},
+ {id:'line4',tag:'form',minT:22,w:2,make(){const g=grade();return L(4,i=>U(0,g,W/2+(i-1.5)*95,120,{am:26,fq:.5,ph:0}))}},
+ {id:'vee',tag:'form',minT:28,w:3,make(){const g=grade(),cx=W/2+(rnd()-.5)*80;return L(5,i=>{const j=(i+1)>>1,sd=i%2?1:-1;return U(j*.3,g,cx+(i?sd*j*70:0),185-j*34,{am:30,fq:.5,ph:0})})}},
+ {id:'heli',tag:'heavy',minT:34,w:2,make(){return[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})]}},
+ {id:'pincer',tag:'form',minT:36,w:2,make(){const g=grade();return L(6,i=>{const r=i>>1,l=i%2==0;return U(r*.45,g,l?95:W-95,100+r*52,{am:30,fq:.5,ph:l?0:Math.PI})})}},
+ {id:'kami',tag:'drone',minT:38,w:2,ok:()=>!hasT('kamikaze'),make(){const n=1+(mt>110?1:0)+(mt>180?1:0);return[X(0,n*1.3,()=>kamikaze(n))]}},
+ {id:'diamond',tag:'form',minT:44,w:2,make(){const g=grade();return[U(0,g,W/2,105,{am:25,fq:.5,ph:0}),U(.4,g,W/2-92,158,{am:25,fq:.5,ph:Math.PI}),U(.4,g,W/2+92,158,{am:25,fq:.5,ph:0}),U(.8,g,W/2,212,{am:25,fq:.5,ph:Math.PI})]}},
+ {id:'scouts',tag:'form',minT:45,w:2,make(){return L(3,i=>U(i*.6,'scout',110+i*130,110+(i%2)*30))}},
+ {id:'strafe',tag:'drone',minT:50,w:2,ok:()=>!hasT('a10'),make(){return mt>130?[X(0,2,strafe),X(2.6,2,strafe)]:[X(0,2,strafe)]}},
+ {id:'wall',tag:'form',minT:58,w:1.6,make(){const g=grade();return L(5,i=>U(i*.25,g,66+i*87,112+(i%2)*26,{am:18,fq:.5,ph:i}))}},
+ {id:'curtain',tag:'form',minT:75,w:1.6,make(){const g=grade();return L(6,i=>{const r=i%3,l=i<3;return U(r*.4,g,l?70+r*58:W-70-r*58,100+r*30,{am:20,fq:.5,ph:l?0:Math.PI})})}},
+ {id:'stars',tag:'star',minT:90,w:2,ok:()=>!hasT('starfield'),make(){const mx=mt>200?3:mt>140?2:1;return starItems(1+Math.floor(rnd()*mx))}},
+ {id:'trios',tag:'heavy',minT:105,w:1.6,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI})]}},
+ {id:'striker',tag:'heavy',minT:120,w:1,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.8,'minion2',W/2-120,100,{am:25,fq:.55,ph:0}),U(.8,'minion2',W/2+120,100,{am:25,fq:.55,ph:0})]}},
+ {id:'squads2',tag:'squad',minT:130,w:2,ok:()=>!hasT('wing'),make(){const n=mt>220?4:3;return[X(0,n*1.1,()=>squad(150,n)),X(1.4,n*1.1,()=>squad(W-150,n))]}},
+ {id:'helis',tag:'heavy',minT:150,w:1.5,make(){return[U(0,'heli',130,120,{am:22,fq:.45,ph:0}),U(.6,'heli',W-130,120,{am:22,fq:.45,ph:Math.PI}),U(1.4,'minion2',W/2,95,{am:30,fq:.5,ph:0})]}},
+ {id:'ace',tag:'heavy',minT:200,w:1.2,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.6,'trio',120,125,{am:35,fq:.6,ph:0}),U(1.1,'trio',W-120,125,{am:35,fq:.6,ph:Math.PI})]}}
+];
+// ----- milestones: each stage ends with one of these -----
+const MS=[
+ {id:'gunship',name:'HELICOPTER GUNSHIP',minS:1,w:3,make(){const a=[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})];if(mt>100)a.push(U(1.4,'minion',W/2-185,150,{am:15,fq:.5,ph:0}),U(1.4,'minion',W/2+185,150,{am:15,fq:.5,ph:0}));return a}},
+ {id:'twinsq',name:'TWIN SQUADRONS',minS:2,w:2,ok:()=>!hasT('wing'),make(){return[X(0,4.4,()=>squad(150,4)),X(2.5,4.4,()=>squad(W-150,4)),X(7,5.5,()=>squad(W/2,5))]}},
+ {id:'swarm',name:'DRONE SWARM',minS:2,w:2,ok:()=>!hasT('kamikaze'),make(){return[X(0,3.6,()=>kamikaze(3)),X(5,3.6,()=>kamikaze(3)),X(10,4.8,()=>kamikaze(D.stage>=4?4:3))]}},
+ {id:'stars',name:'STAR STORM',minS:2,w:2,ok:()=>!hasT('starfield'),make(){return starItems(Math.min(3,1+Math.floor(D.stage/2)))}},
+ {id:'battle',name:'BATTLESHIP',minS:2,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,10,()=>sea('battle')),U(3,'minion2',W/2-110,110,{am:25,fq:.5,ph:0}),U(3,'minion2',W/2+110,110,{am:25,fq:.5,ph:Math.PI}),X(5,2.5,()=>sea('boat')),X(8,2.5,()=>sea('boat',95))]}},
+ {id:'oil',name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
+ {id:'dread',name:'DREADNOUGHT',minS:3,w:3,ok:()=>!hasT('dread'),make(){return[U(0,'dread',W/2,100,{am:40,fq:.45,ph:0}),U(1.2,'minion2',W/2-135,150,{am:25,fq:.5,ph:0}),U(1.2,'minion2',W/2+135,150,{am:25,fq:.5,ph:0}),U(2.4,'minion',W/2-200,200,{am:15,fq:.5,ph:0}),U(2.4,'minion',W/2+200,200,{am:15,fq:.5,ph:0})]}},
+ {id:'carrier',name:'AIRCRAFT CARRIER',minS:3,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,12,()=>sea('carrier'))]}},
+ {id:'train',name:'ARMORED TRAIN',minS:3,w:3,ok:()=>railS!==null&&mt>=D.railAt+25&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
+ {id:'aces',name:'ACE PILOTS',minS:3,w:1.5,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2-110,150,{am:40,fq:.6}),U(1.5,'striker',W/2+110,170,{am:40,fq:.6}),U(2.5,'minion2',W/2,100,{am:30,fq:.5,ph:0})]}},
+ {id:'elite',name:'ELITE WING',minS:3,w:1.5,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI}),U(1.5,'minion2',W/2-60,95,{am:25,fq:.5,ph:0}),U(1.5,'minion2',W/2+60,95,{am:25,fq:.5,ph:Math.PI}),U(2.5,'minion2',W/2,170,{am:25,fq:.5,ph:0})]}},
+ {id:'armada',name:'ARMADA',minS:4,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(7,10,()=>sea('battle')),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
+];
+const stLen=()=>Math.min(110,50+D.stage*10);
+function pickEnc(){
+  const h=heat(),lim=capA()-loadA(),room=D.ms?lim*.55:lim,forced=D.n<3?['solo','twin','line3'][D.n]:null,cs=[];
+  for(const e of ENC){
+    if(forced){if(e.id!==forced)continue}else if(e.w<=0||mt<e.minT||(e.ok&&!e.ok()))continue;
+    const it=e.make(),cost=itemCost(it);
+    if(!forced&&cost>room)continue;
+    let w=e.w*(.5+Math.min(1,cost/Math.max(1,room)));   // prefer encounters that use up the room
+    if(D.hist.includes(e.id))w*=.15;                      // never the same formation back to back
+    if(e.tag!='form'&&D.tags[D.tags.length-1]==e.tag)w*=.35;
+    if(e.tag=='form'&&e.id!='scouts')w*=Math.max(.3,1-Math.max(0,h-3)*.17);   // late game: fewer plain minion formations
+    if(D.fav.includes(e.tag))w*=1.6;                      // this run's favourites
+    if(e.tag=='heavy'||e.tag=='star')w*=1+h*.1;
+    cs.push({e,it,w});
+  }
+  if(!cs.length)return false;
+  const c=wpick(cs);launch(c.it);D.n++;
+  D.hist.push(c.e.id);if(D.hist.length>3)D.hist.shift();D.tags.push(c.e.tag);if(D.tags.length>3)D.tags.shift();
+  D.cool=Math.max(1.3,3-.28*h)+rnd()*1.2;return true;
+}
+function startMilestone(){
+  const c=MS.filter(m=>D.stage>=m.minS&&(!m.ok||m.ok()));
+  if(!c.length){D.stT-=8;return}
+  let m=null;
+  if(D.stage>=4&&!D.trainDone)m=c.find(x=>x.id=='train')||null;   // the train always shows up by stage 4
+  if(!m)m=wpick(c.map(x=>({m:x,w:x.w*(D.msHist.includes(x.id)?.15:1)}))).m;
+  let items=m.make(),name=m.name;
+  if(D.stage>=6){const c2=c.filter(x=>x!==m&&!(m.sea&&x.sea));if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
+  D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
+  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage};
+  launch(items,D.ms.id);D.cool=3.5;
+}
+function lanes(h){
+  const lim=Math.min(3,1+Math.floor(h/2.5)),cnt=t=>en.filter(e=>e.ty==t&&!e.dead).length,ok=D.brk<=0;
+  D.gT-=DT;if(D.gT<=0){   // desert lane: turrets, tanks, trucks (singles, sometimes a pair)
+    const gc=en.filter(e=>e.gnd&&!e.tr&&!e.sea&&!e.oil).length;
+    if(ok&&mt>=24&&gc<lim){
+      const o=['turret','turret'];if(mt>=34)o.push('tank','tank');if(mt>=55)o.push('truck');if(mt>=130)o.push('truck');
+      let k=o[Math.floor(rnd()*o.length)];if(k=='truck'&&cnt('truck')>=1)k='tank';
+      const sd=railS!==null?1:(rnd()<.5?1:0);ground(k,sd);
+      if(mt>=80&&gc+2<=lim&&rnd()<.35)ground(k=='truck'?'tank':k,sd,110);
+    }
+    D.gT=Math.max(4.5,9+rnd()*6-h*.8);
+  }
+  D.sT-=DT;if(D.sT<=0){   // gulf lane: patrol boats and ships
+    const big=en.some(e=>e.ty=='carrier'||e.ty=='battle'),sc=en.filter(e=>e.sea&&e.ty!='battle'&&e.ty!='carrier').length;
+    if(ok&&mt>=22&&!big&&sc<lim){
+      const o=['boat','boat'];if(mt>=60)o.push('ship');if(mt>=130)o.push('ship');
+      let k=o[Math.floor(rnd()*o.length)];if(k=='ship'&&cnt('ship')>=1)k='boat';
+      sea(k);if(k=='boat'&&mt>=50&&sc+2<=lim&&rnd()<.35)sea('boat',95);
+    }
+    D.sT=Math.max(5,10+rnd()*6-h*.8);
+  }
+  D.bsT-=DT;if(D.bsT<=0){   // rare battleship cruising the gulf
+    if(ok&&mt>=90&&!en.some(e=>e.ty=='carrier'||e.ty=='battle')&&en.filter(e=>e.sea).length<2){sea('battle');D.bsT=100+rnd()*50}else D.bsT=4;
+  }
+  D.oT-=DT;if(D.oT<=0){   // oil fields: rarer, tanky targets
+    if(ok&&!cnt('oil')&&!cnt('carrier')){oilField();D.oT=85+rnd()*40}else D.oT=4;
+  }
+  D.cT-=DT;if(D.cT<=0){   // cargo planes: harmless bonus targets that may drop a health pickup (more often when you are low)
+    if(ok&&!cnt('cargo')){cargo();D.cT=(24+rnd()*18)*(P[0].hp<50?.55:1)}else D.cT=2;
+  }
+}
+function spawnOne(){   // random filler: one hovering fighter at the spot farthest from the others, with its own free sway
+  const r=rnd(),h=heat(),ty=(mt>85&&r>.82)?'scout':(mt>30&&h>1.5&&r>.8&&!hasT('heli'))?'heli':(mt>18&&r>.5)?'minion2':'minion',d=FT[ty];
+  let bx=W/2,bd=-1;
+  for(let i=0;i<5;i++){const x=70+rnd()*(W-140),m=Math.min(999,...en.filter(e=>!e.gnd).map(e=>Math.abs(e.x-x)));if(m>bd){bd=m;bx=x}}
+  bx=Math.max(105,Math.min(W-105,bx));
+  en.push({ty,x:bx,x0:bx,tx:bx,y:-50,sy:SYB[ty]+rnd()*50,age:0,cd:1.4+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:rnd()*6.28,n:0,alt:0,rc:0,fill:1});
+}
+function directorStep(){
+  const h=heat();
+  if(D.bn&&D.bn.t>0)D.bn.t-=DT;
+  for(let i=dq.length-1;i>=0;i--){const q=dq[i];q.t-=DT;if(q.t<=0){dq.splice(i,1);spawnItem(q.it,q.ms)}}
+  adaptStep();
+  if(railS===null&&mt>=D.railAt)layRail();
+  if(D.brk>0){   // breather after a stage: nothing new spawns, a supply cargo plane drifts in, then the next stage is announced
+    D.brk-=DT;
+    if(D.sup&&D.brk<5.2){D.sup=0;cargo(1)}
+    if(D.brk<=0)D.bn={t:2.6,T:2.6,s:'STAGE '+D.stage,sub:'',w:0};
+  }
+  lanes(h);
+  const cap=capA(),ld=loadA();
+  D.calm=ld<cap*(.4+.045*h)?D.calm+DT:0;D.cool-=DT;
+  if(D.ms){
+    D.ms.t+=DT;const id=D.ms.id,alive=dq.some(q=>q.ms===id)||en.some(e=>e.ms===id);
+    if((!alive&&D.ms.t>2)||D.ms.t>90){
+      const full=D.ms.n>0&&D.ms.k>=D.ms.n,b=alive?0:Math.round(D.ms.bonus*(full?1.5:1));
+      for(const e of en)if(e.ms===id)e.ms=0;
+      pts+=b;D.bn={t:3.2,T:3.2,s:'STAGE CLEAR',sub:b?'+'+b+(full?'  PERFECT':''):'',w:2};
+      D.stage++;D.stT=0;D.ms=null;D.brk=6.5;D.sup=1;D.cool=3;
+    }
+  }else if(D.brk<=0){
+    D.stT+=DT;
+    if(D.stT>=stLen()&&D.cool<=0&&(ld<cap*.5||D.stT>stLen()+14))startMilestone();
+  }
+  if(D.brk<=0&&D.cool<=0&&D.calm>=Math.max(.5,2.2-.28*h)){if(!pickEnc())D.cool=.8}
+  D.fT-=DT;
+  if(D.fT<=0){   // a touch of old-style random filler so quiet moments are never dead and no two runs flow the same
+    D.fT=3.6+rnd()*2.6+Math.max(0,h-3)*1.6;
+    const nf=en.filter(e=>e.fill&&!e.dead).length;
+    if(D.n>=3&&mt>=12&&D.brk<=0&&!D.ms&&nf<(h>4?1:Math.min(3,1+Math.floor(h/2.5)))&&ld<cap*.45)spawnOne();
+  }
+}
+function mission(){
+  mt+=DT;
+  const p=P[0];
+  directorStep();
   const tr=en.filter(e=>e.tr),tv=tr.length&&Math.min(...tr.map(e=>e.y))>170?118:90;   // train overtakes you, then keeps pace
   for(const e of en){
     e.age+=DT;const ty=e.ty;
     if(e.tr){
-      e.wy+=tv*DT;e.y=scroll-e.wy;e.x=trackX(e.wy);e.rot=Math.atan2(trackX(e.wy+8)-trackX(e.wy-8),16);
+      e.wy+=tv*DT;e.y=scroll-e.wy;e.x=railX(e.wy);e.rot=Math.atan2(railX(e.wy+8)-railX(e.wy-8),16);
       if(e.y<-120)e.dead=1;
     }else if(e.gnd){
-      e.wy-=e.v*DT;e.y=scroll-e.wy;e.x=gndX(e.wy,e.ratio,e.sd);
-      if(e.y>H+60)e.dead=1;
+      if(ty=='carrier'){   // glides in, keeps pace with you for a long time while launching strikers, then slowly falls behind
+        const t=Math.max(0,1-e.age/4),dy=Math.max(0,e.age-50);e.y=150-290*t*t+dy*dy*1.1;e.wy=scroll-e.y;
+        if(e.ln<e.nl&&e.age>4&&e.y<H*.55){e.lt-=DT;if(e.lt<=0){e.ln++;e.lt=3.2;const sx=e.x+(e.ln%2?-12:12);
+          en.push({ty:'striker',x:sx,x0:sx,tx:sx,y:e.y+10,sy:230+rnd()*50,age:0,cd:1.3,hp:FT.striker.hp,mhp:FT.striker.hp,r:FT.striker.r,pts:FT.striker.pts,ph:rnd()*6.28,n:0,alt:0,rc:0})}}
+      }else{e.wy-=e.v*DT;e.y=scroll-e.wy}
+      e.x=gndX(e.wy,e.ratio,e.sd);
+      if(e.y>H+(e.hh||0)+60)e.dead=1;
     }else if(ty=='a10'){
       if(e.warn>0){e.warn-=DT;continue}
       e.x+=e.d*205*DT;
@@ -458,6 +732,15 @@ function mission(){
     }else if(ty=='cargo'){
       e.y+=58*DT;
       if(e.y>H+80)e.dead=1;
+    }else if(ty=='kamikaze'){   // turns toward you at a limited rate (so it can be dodged), speeds up, blows up on contact
+      e.spd=Math.min(235,e.spd+38*DT);
+      if(p.alive){let d=Math.atan2(p.y-e.y,p.x-e.x)-e.ang;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;e.ang+=Math.max(-2.1*DT,Math.min(2.1*DT,d))}
+      e.x+=Math.cos(e.ang)*e.spd*DT;e.y+=Math.sin(e.ang)*e.spd*DT;
+      if(p.alive&&Math.hypot(e.x-p.x,e.y-p.y)<e.r+16){
+        e.dead=1;const R=80,d=Math.hypot(e.x-p.x,e.y-p.y);rings.push({x:e.x,y:e.y,t:0});
+        burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y);
+      }
+      if(e.y>H+70||e.y<-120||e.x<-80||e.x>W+80)e.dead=1;
     }else if(ty=='starfield'){
       e.ang+=e.w*DT;
       if(e.st==0){   // smooth glide in
@@ -482,16 +765,16 @@ function mission(){
         let tx=p.x+Math.sin(e.age*.9+e.ph)*90,sv=130;
         for(const b of bul)if(b.o==0&&b.y>e.y&&b.y-e.y<280&&Math.abs(b.x-e.x)<32){tx=e.x+(e.x<b.x?-1:1)*80;sv=210;if(tx<50||tx>W-50)tx=e.x+(tx<e.x?80:-80)}
         e.x+=Math.sign(tx-e.x)*Math.min(sv,Math.abs(tx-e.x)*3)*DT;
-      }else{const m={minion:[.5,60],minion2:[.65,80],heli:[.5,85],trio:[.6,100],dread:[.45,70]}[ty];e.x=e.x0+Math.sin(e.age*m[0]+e.ph)*m[1]}
+      }else{const m={minion:[.5,60],minion2:[.65,80],heli:[.5,85],trio:[.6,100],dread:[.45,70]}[ty];e.x=e.x0+Math.sin(e.age*(e.fq===undefined?m[0]:e.fq)+e.ph)*(e.am===undefined?m[1]:e.am)}
       for(const o of en)if(o!==e&&!o.gnd&&Math.abs(o.x-e.x)<56&&Math.abs(o.y-e.y)<56)e.x+=(e.x<o.x?-1:1)*70*DT;
       e.x=Math.max(34,Math.min(W-34,e.x));
     }
-    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'){
+    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='kamikaze'){
       e.cd-=DT;
       if(e.cd<=0&&e.y>25&&e.y<H-12&&p.alive&&(ty!='wing'||e.y<H*.62))(ty=='scout'||ty=='striker'?fireE:fireN)(e,p);
     }
     e.rc-=DT;
-    if(!e.gnd&&p.alive&&e.rc<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.r+14){
+    if(!e.gnd&&ty!='kamikaze'&&p.alive&&e.rc<=0&&Math.hypot(e.x-p.x,e.y-p.y)<e.r+14){
       e.rc=.8;burst(e.x,e.y,C.ember,10);e.hp-=15;
       if(e.hp<=0)killE(e);
       hurt(p,12,p.x,p.y);
@@ -510,14 +793,14 @@ function step(){
   if(state=='play'&&rb>0){rb-=DT;for(const c of pc)c.dx=c.dy=0;return}
   if(state=='play'){
     for(const p of P){if(!p.alive)continue;p.cd-=DT;if(control(p))fire(p)}
-    if(mode=='mission')mission();
+    if(mode=='mission'){mission();stepFires()}
   }
   for(const b of bul){
     b.tr.push({x:b.x,y:b.y});if(b.tr.length>26)b.tr.shift();b.x+=b.vx*DT;b.y+=b.vy*DT;
     if(state=='play'){
       if(b.o==2){const q=P[0];if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y)}}
       else if(mode=='mission'){
-        for(const e of en)if(!e.dead&&!(e.warn>0)&&Math.hypot(b.x-e.x,b.y-e.y)<e.r){
+        for(const e of en)if(!e.dead&&!(e.warn>0)&&(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r)){
           b.dead=1;e.hp-=b.d;burst(b.x,b.y,C.cream,3);
           if(e.hp<=0)killE(e);
           break;
@@ -532,7 +815,7 @@ function step(){
     if(timer<=0){
       if(mode=='mission'){msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
       else if(score[0]>=winAt()||score[1]>=winAt()){
-        msg.textContent=(score[0]>score[1]?(mode=='cpu'?'You win the match!':'Bottom jet wins the match!'):(mode=='cpu'?'The bot wins the match.':'Top jet wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
+        msg.textContent=(score[0]>score[1]?(mode=='cpu'?'You win the match!':'P1 wins the match!'):(mode=='cpu'?'The bot wins the match.':'P2 wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
       }else reset();
     }
   }
@@ -573,13 +856,7 @@ function terrain(){
     
     
   }
-  const ra=railA();
-  if(ra>0){   // rail line following the left shore
-    ctx.lineCap='butt';ctx.strokeStyle='rgba(84,66,56,'+.75*ra+')';ctx.lineWidth=2.4;
-    for(let wy=Math.floor((scroll-H-8)/16)*16;wy<=scroll+16;wy+=16){const y=scroll-wy,x=trackX(wy);ctx.beginPath();ctx.moveTo(x-7,y);ctx.lineTo(x+7,y);ctx.stroke()}
-    ctx.strokeStyle='rgba(44,36,34,'+.85*ra+')';ctx.lineWidth=1.8;
-    for(const o of[-3.2,3.2]){ctx.beginPath();for(let k=0;k<NY;k++){const y=-8+k*6,x=trackX(scroll-y)+o;k?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke()}
-  }
+  if(mode=='mission'&&state!='menu'&&railS!==null)drawRail();
   ctx.fillStyle=gVg;ctx.fillRect(0,0,W,H);
 }
 // ---------- HUD + draw ----------
@@ -608,9 +885,11 @@ function draw(){
     ctx.strokeStyle='rgba(236,217,208,.8)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,my-10);ctx.lineTo(W,my-10);ctx.moveTo(0,my+10);ctx.lineTo(W,my+10);ctx.stroke();
     ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.5;ctx.setLineDash([12,10]);ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(W,my);ctx.stroke();ctx.setLineDash([]);
   }
+  drawFires();
   for(const e of en)if(e.gnd)drawEnemy(e);
   for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
-  for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
+  for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
+  drawPickups();
   for(const p of P)if(p.alive)jet(ix(p,'x'),ix(p,'y'),p.dir,p.pal);
   ctx.lineCap='round';
   for(const b of bul){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
@@ -629,11 +908,14 @@ function draw(){
   if(mode=='mission'){
     bar(P[0],H-22,'HP');txt('SCORE '+pts,14,24,17,C.cream,'left');
     txt('TIME '+Math.floor(mt/60)+':'+String(Math.floor(mt%60)).padStart(2,'0'),W-62,24,17,C.cream,'right');
+    txt('STAGE '+D.stage,W-62,44,12,'rgba(236,217,208,.7)','right');
+    const bn=D.bn;if(bn&&bn.t>0&&state=='play'){const a=Math.min(1,(bn.T-bn.t)*5,bn.t*2.5),warn=bn.w==1&&Math.floor(bn.t*5)%2==0;ctx.globalAlpha=Math.max(0,a);
+      txt(bn.s,W/2,H*.2,bn.s.length>8?26:32,bn.w==1?(warn?C.cream:C.brick):C.cream);if(bn.sub)txt(bn.sub,W/2,H*.2+30,bn.w==1?15:18,C.cream);ctx.globalAlpha=1}
     if(state=='between')txt('MISSION FAILED',W/2,H/2,32,C.cream);
   }else{
-    bar(P[1],10,mode=='cpu'?'BOT':'');bar(P[0],H-22,'');pips(score[1],10,C.brick);pips(score[0],H-22,C.cream);
+    bar(P[1],10,mode=='cpu'?'BOT':'P2');bar(P[0],H-22,'P1');pips(score[1],10,C.brick);pips(score[0],H-22,C.cream);
     if(rb>0){txt('ROUND '+(score[0]+score[1]+1),W/2,H/2-40,34,C.cream);txt('FIRST TO '+winAt()+' WINS',W/2,H/2-8,15,C.cream)}
-    if(state=='between'){const bw=!P[1].alive;txt(mode=='cpu'?(bw?'ROUND WON':'ROUND LOST'):(bw?'BOTTOM JET SCORES':'TOP JET SCORES'),W/2,H/2,32,C.cream)}
+    if(state=='between'){const bw=!P[1].alive;txt(mode=='cpu'?(bw?'ROUND WON':'ROUND LOST'):(bw?'P1 SCORES':'P2 SCORES'),W/2,H/2,32,C.cream)}
   }
 }
 // ---------- full-screen backdrop for wide (PC) screens ----------
