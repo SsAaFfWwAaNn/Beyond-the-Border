@@ -86,6 +86,7 @@ button:disabled{opacity:.5;cursor:default}
 <button id="b1">PLAYER VS BOT</button>
 <button id="b2">PLAYER VS PLAYER</button>
 <button id="b3">ONLINE · 1V1 MATCHMAKING</button>
+<div id="mon" class="lbl" style="min-height:1.1em"></div>
 </div>
 <small><b>P1</b> WASD + Space &nbsp;·&nbsp; <b>P2</b> Arrows + Enter<br>Mission and bot matches also accept arrows + Space/Enter/Z<br>Touch: drag anywhere to steer, your jet auto-fires<br>Two players on one phone: one finger each, in your own half<br>Pause: Esc or the pause button</small>
 </div>
@@ -182,7 +183,7 @@ function jet(x,y,dir,pal){
 // ---------- game ----------
 function mk(i){return{i,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
 function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play'}
-function start(m){mode=m;$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'LEAVE MATCH':'MAIN MENU';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');reset()}
+function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'LEAVE MATCH':'MAIN MENU';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 function fire(p){if(p.cd>0)return;p.cd=.22;bul.push({x:p.x,y:p.y+p.dir*36,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]});if(mode=='online'&&p.i==0){net.fc++;net.fx=p.x;net.fy=p.y}}
 function ai(p){
@@ -908,7 +909,7 @@ function step(){
     }
   }
 }
-function endMenu(){state='menu';paused=false;bestv.textContent=best;pbtn.classList.remove('show');menu.classList.remove('hide')}
+function endMenu(){state='menu';paused=false;if(!net.on&&!wait&&RM&&lst=='busy'){lst='idle';pushLobby()}bestv.textContent=best;pbtn.classList.remove('show');menu.classList.remove('hide')}
 // ---------- terrain: rose ocean gulf between grey desert coasts ----------
 const vn=(y,s)=>{const g=y/26,i=Math.floor(g),f=g-i,u=f*f*(3-2*f);return hs(i,s)*(1-u)+hs(i+1,s)*u};
 const NY=Math.ceil((H+16)/6)+1,LC=new Array(NY),RC=new Array(NY);
@@ -1079,13 +1080,13 @@ async function getRoom(){
 }
 // ---------- online 1v1 netcode ----------
 const net={on:false,room:null,opp:null,oname:'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0};
-let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,needFresh=0,qs=0,incoming=null,psig='';const dismissed={},bad={};
+let RM=null,lst='idle',offer=null,wait=null,oroom=null,wt=0,lobbyUn=null,needFresh=0,gone=0,qs=0,incoming=null,psig='';const dismissed={},bad={};
 const nm=$('nm'),ost=$('ostat'),onl=$('online'),AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const clean=s=>(s||'').replace(/[^A-Za-z0-9 _.\-]/g,'').trim().slice(0,14),myName=()=>clean(nm.value)||'Pilot';
 const rcode=n=>Array.from({length:n},()=>AL[Math.floor(Math.random()*AL.length)]).join(''),rname=c=>'g-'+c.toLowerCase();
 try{nm.value=clean(localStorage.getItem('beyondBorderName'))}catch(e){}
 if(!nm.value)nm.value='Pilot'+(100+Math.floor(Math.random()*900));
-nm.onchange=()=>{nm.value=myName();try{localStorage.setItem('beyondBorderName',nm.value)}catch(e){}};
+nm.onchange=()=>{nm.value=myName();try{localStorage.setItem('beyondBorderName',nm.value)}catch(e){}if(RM&&!net.on)pushLobby()};
 for(const id of['nm','ojc','ouser'])$(id).addEventListener('keydown',e=>e.stopPropagation());
 const pushLobby=()=>{if(RM)RM.presence({n:myName(),st:lst,off:offer||null})};
 function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'CANCEL SEARCH':'FIND A MATCH';$('ofind').disabled=b;$('oinv').textContent=b?'CANCEL':'INVITE A FRIEND';$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
@@ -1099,14 +1100,15 @@ async function openOnline(){
   lobbyTick();
 }
 function lobbyTick(){
-  if(!RM||!onl.classList.contains('show')||net.on)return;
+  if(!RM||net.on)return;
   const ps=RM.peers(),me=ps.find(p=>p.sameTab),others=ps.filter(p=>!p.isMe&&p.kind=='viewer'&&p.presence.n&&Date.now()-p.updatedAt<12000);
   $('ocount').textContent=RM.connected()?(others.length+1)+' online':'connecting…';
+  $('mon').textContent=RM.connected()?'● '+(others.length+1)+' pilot'+(others.length?'s':'')+' online':'';
   const sig=others.map(p=>p.peer+p.presence.n+p.presence.st).join('|')+lst+!!wait;
   if(sig!=psig){psig=sig;const pl=$('plist');pl.textContent='';
     if(!others.length)pl.textContent='No other pilots online right now. Share the link with a friend!';
     for(const p of others.slice(0,8)){const d=document.createElement('div'),s=document.createElement('span');d.className='pl';
-      s.textContent=clean(p.presence.n)+(p.presence.st=='queue'?' · searching':p.presence.st=='idle'?'':' · in match');d.appendChild(s);
+      s.textContent=clean(p.presence.n)+(p.presence.st=='queue'?' · searching':p.presence.st=='idle'?' · on menu':' · in match');d.appendChild(s);
       if((p.presence.st=='idle'||p.presence.st=='queue')&&!wait&&lst=='idle'){const b=document.createElement('button');b.textContent='CHALLENGE';b.onclick=()=>challenge(p);d.appendChild(b)}
       pl.appendChild(d)}}
   if(!me)return;
@@ -1151,8 +1153,8 @@ function beginMatch(opp){
   wait=null;lst='busy';offer=null;pushLobby();$('chal').classList.remove('show');onl.classList.remove('show');start('online');
 }
 function netLeave(){
-  clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=1;for(const k in bad)delete bad[k];
-  if(RM)RM.presence({n:null,st:null,off:null});
+  clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=0;for(const k in bad)delete bad[k];
+  if(!gone)setTimeout(()=>resetLobby().then(()=>lobbyTick()),300);
 }
 function netEnd(text,title){netLeave();msg.textContent='Choose your sortie';setPause(false);pmenu.classList.remove('show');endMenu();$('rtit').textContent=title||'MATCH OVER';$('rtxt').textContent=text;$('res').classList.add('show')}
 $('rok').onclick=()=>$('res').classList.remove('show');
@@ -1194,9 +1196,10 @@ $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();i
   if(!p){ost.textContent='No pilot named “'+raw+'” is online right now. Use the invite link instead.';return}
   if(p.presence.st!='idle'&&p.presence.st!='queue'){ost.textContent=clean(p.presence.n)+' is busy in a match.';return}
   challenge(p)};
-addEventListener('pagehide',()=>{if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
+addEventListener('pagehide',()=>{gone=1;if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
-setInterval(()=>{if(onl.classList.contains('show'))lobbyTick()},2000);
+setInterval(lobbyTick,2000);
+(async()=>{try{RM=await getRoom()}catch(e){RM=null}if(RM){subLobby();pushLobby();lobbyTick()}})();   // join the lobby on page load
 // self-healing lobby: after a match, or whenever the connection / our own presence goes missing, rebuild it from scratch
 const subLobby=()=>{if(RM&&!lobbyUn)lobbyUn=RM.onPeers(lobbyTick,()=>{})};
 async function resetLobby(){
@@ -1205,9 +1208,10 @@ async function resetLobby(){
   RM=null;try{RM=await getRoom()}catch(e){RM=null}
   subLobby();if(RM)pushLobby();
 }
-let dcn=0,busyFix=0;
+let dcn=0,busyFix=0,rtry=0;
 setInterval(async()=>{
-  if(!onl.classList.contains('show')||net.on||wait||!RM||busyFix)return;
+  if(net.on||wait||busyFix||state!='menu')return;
+  if(!RM){if(++rtry%5==0){busyFix=1;try{await resetLobby();lobbyTick()}finally{busyFix=0}}return}
   dcn=RM.connected()&&RM.peers().some(p=>p.sameTab)?0:dcn+1;
   const stuck=lst=='queue'&&Date.now()-qs>25000;
   if(dcn>=3||stuck){dcn=0;qs=Date.now();busyFix=1;try{await resetLobby();syncBtns();lobbyTick()}finally{busyFix=0}}
@@ -1216,7 +1220,7 @@ setInterval(async()=>{
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
 $('cacc').onclick=()=>{const c=incoming;$('chal').classList.remove('show');if(c){if(lst=='queue'){lst='idle'}acceptRoom(c)}};
 $('cdec').onclick=()=>{if(incoming)dismissed[incoming]=1;incoming=null;$('chal').classList.remove('show')};
-$('oback').onclick=()=>{cancelWait('');if(RM)RM.presence({n:null,st:null,off:null});lst='idle';onl.classList.remove('show');$('chal').classList.remove('show');menu.classList.remove('hide')};
+$('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remove('show');$('chal').classList.remove('show');menu.classList.remove('hide')};
 
 let last=performance.now(),acc=0;
 let alpha=0;
