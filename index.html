@@ -158,7 +158,7 @@ kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 0 0 4px;border-
 <div id="ibar" aria-live="polite"></div>
 </div>
 <script>
-const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=480,H=720,DT=1/60;
+const cv=document.getElementById('c'),W=480,H=720,DT=1/60;let ctx=cv.getContext('2d');
 const menu=document.getElementById('menu'),msg=document.getElementById('msg');
 const K={},pc=[mkP(),mkP()],ptr=pc[0],FONT="'Hind Siliguri',system-ui,sans-serif";
 const C={rose:'#b48c82',ink:'#182322',slate:'#343f49',grey:'#535962',cream:'#ecd9d0',ember:'#e9946a',brick:'#c4574a'};
@@ -523,7 +523,7 @@ function jet(x,y,dir,pal,g){
 }
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
+function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 // gun layouts by gun count (x offsets in jet-model units). GE = y of the wing's leading edge at that x, so every barrel sits right on the airframe
@@ -666,10 +666,10 @@ function chinookJet(x,y,e){   // large tandem-rotor helicopter: two spinning pro
   ctx.restore();
 }
 function seaJet(x,y,e){   // patrol boat and ship: bow toward the player, wake behind
-  const p=P[0],t=e.ty,ship=t=='ship',fl=Math.sin(e.age*5)*1.5;
+  const p=e.wreck?e.fp:P[0],t=e.ty,ship=t=='ship',fl=Math.sin(e.age*5)*1.5;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
   ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=2;
-  for(const s of[-1,1]){ctx.beginPath();ctx.moveTo(s*(ship?12:7),ship?-42:-14);ctx.lineTo(s*(ship?24:14)+fl,ship?-90:-44);ctx.stroke()}
+  if(!e.wreck)for(const s of[-1,1]){ctx.beginPath();ctx.moveTo(s*(ship?12:7),ship?-42:-14);ctx.lineTo(s*(ship?24:14)+fl,ship?-90:-44);ctx.stroke()}
   ctx.strokeStyle='rgba(236,217,208,.45)';ctx.lineWidth=1;
   if(!ship){
     ctx.fillStyle='#505760';ctx.beginPath();ctx.moveTo(0,22);ctx.lineTo(8,6);ctx.lineTo(8,-14);ctx.lineTo(-8,-14);ctx.lineTo(-8,6);ctx.closePath();ctx.fill();ctx.stroke();
@@ -711,10 +711,10 @@ function deckJet(px,py,sc,lift,fl){   // a striker seen on the deck: small while
   ctx.fillStyle=m.cc;ctx.fill(m.can);ctx.restore();
 }
 function bigShip(x,y,e){   // battleship and aircraft carrier: bow toward the player, wake behind
-  const p=P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?CL:72,Wd=car?CW:16;
+  const p=e.wreck?e.fp:P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?CL:72,Wd=car?CW:16;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
   ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=car?3.2:2.4;
-  for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*(Wd-2),L-30);ctx.lineTo(sd*(Wd+14)+fl,-L-50);ctx.stroke()}
+  if(!e.wreck)for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*(Wd-2),L-30);ctx.lineTo(sd*(Wd+14)+fl,-L-50);ctx.stroke()}
   ctx.fillStyle='rgba(24,35,34,.22)';ctx.fillRect(-Wd+8,-L+10,Wd*2,L*2-6);
   ctx.strokeStyle='rgba(236,217,208,.45)';ctx.lineWidth=1;
   ctx.fillStyle=car?'#3c434c':'#3a4149';ctx.beginPath();ctx.moveTo(0,L+14);ctx.lineTo(Wd,L-30);ctx.lineTo(Wd,-L);ctx.lineTo(-Wd,-L);ctx.lineTo(-Wd,L-30);ctx.closePath();ctx.fill();ctx.stroke();
@@ -878,6 +878,7 @@ function killE(e){
   if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}if(e.ty=='carrier')for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0){const bx=e.x+cSlotX(j),by2=e.y+cSlotY(j,e.nl);burst(bx,by2,C.ember,16);burst(bx,by2,C.cream,6)}
     pop(e.x,e.y-e.hh-12,(e.ty=='carrier'?'CARRIER +':'BATTLESHIP +')+e.pts)}
   if(e.g&&++e.g.k==e.g.n){pts+=e.g.bonus;pop(e.x,e.y-26,e.g.label+' +'+e.g.bonus)}
+  leaveWreck(e);   // ground units and rigs stay behind as rubble; ships sink
 }
 function shot(e,a,s,d,ox,oy){SFX.eshot(e.x,e.ty);bul.push({x:e.x+(ox||0),y:e.y+(oy===undefined?16:oy),vx:Math.cos(a)*s,vy:Math.sin(a)*s,o:2,d,tr:[]})}
 function fireE(e,p){   // scouts: single aimed shot; strikers: aimed triple-tap
@@ -927,6 +928,7 @@ function stepFires(){
   for(const f of fires){f.t+=DT;f.tk-=DT;
     if(f.t>1.2&&f.t<f.life&&f.tk<=0&&p&&p.alive&&Math.hypot(p.x-f.x,p.y-(scroll-f.wy))<46){hurt(p,5,p.x,p.y);f.tk=.45}}
   fires=fires.filter(f=>f.t<f.life&&scroll-f.wy<H+90);
+  stepWrecks();
 }
 function drawPickups(){
   for(const o of pickups){const g=.5+.5*Math.sin(o.t*6);
@@ -962,6 +964,181 @@ function oilRig(x,y,e){   // top-down offshore rig: deck, legs, tanks, derrick, 
   const fl=3+Math.random()*2;ctx.fillStyle='#e9946a';ctx.beginPath();ctx.arc(15,-23,fl,0,6.28);ctx.fill();ctx.fillStyle='#f2cf8a';ctx.beginPath();ctx.arc(15,-23,fl*.5,0,6.28);ctx.fill();
   if(Math.sin(e.age*3+e.ph)>.3){ctx.fillStyle='#c4574a';ctx.beginPath();ctx.arc(-19,-19,2,0,6.28);ctx.fill()}
   ctx.restore();
+}
+
+// ---------- wrecks: destroyed ground units leave burnt-out rubble that stays put; ships sink slowly ----------
+let wrecks=[],wid=0;
+const WSP={};   // rubble sprites: drawn once per variant at 2x resolution, then reused
+const rng=s=>{let a=s|0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}};   // own seeded rng: cosmetics never disturb the game's spawn sequence
+const al=a=>Math.max(0,Math.min(1,a)).toFixed(3);   // plain decimals only in colour strings
+const sm3=(a,b,v)=>{v=Math.max(0,Math.min(1,(v-a)/(b-a)));return v*v*(3-2*v)};
+function makeSprite(w,h,fn){const c=document.createElement('canvas');c.width=w*2;c.height=h*2;const g=c.getContext('2d');g.scale(2,2);g.translate(w/2,h/2);const m=ctx;ctx=g;try{fn(g)}finally{ctx=m}return c}
+function wBlob(g,x,y,rx,ry,col,R){   // irregular smooth blob (soot patch, slick, hole)
+  const n=9,p=[];for(let i=0;i<n;i++){const a=i/n*6.2832,k=.7+R()*.6;p.push([x+Math.cos(a)*rx*k,y+Math.sin(a)*ry*k])}
+  g.fillStyle=col;g.beginPath();g.moveTo((p[0][0]+p[n-1][0])/2,(p[0][1]+p[n-1][1])/2);
+  for(let i=0;i<n;i++){const q=p[i],r=p[(i+1)%n];g.quadraticCurveTo(q[0],q[1],(q[0]+r[0])/2,(q[1]+r[1])/2)}
+  g.closePath();g.fill()}
+function wPoly(g,pts,j,R,fill,stroke){g.beginPath();pts.forEach((p,i)=>{const x=p[0]+(R()-.5)*j,y=p[1]+(R()-.5)*j;i?g.lineTo(x,y):g.moveTo(x,y)});g.closePath();g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke()}}
+function wGlow(g,x,y,r){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(233,148,106,.55)');gr.addColorStop(1,'rgba(233,148,106,0)');g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,6.2832);g.fill()}
+function wScorch(g,rx,ry,a,R){   // blast scorch: soot gradient, charred blotches and streaks thrown outward
+  const m=Math.max(rx,ry),gr=g.createRadialGradient(0,0,2,0,0,m);gr.addColorStop(0,'rgba(8,6,6,'+al(a)+')');gr.addColorStop(.55,'rgba(16,12,12,'+al(a*.6)+')');gr.addColorStop(1,'rgba(16,12,12,0)');
+  g.save();g.scale(rx/m,ry/m);g.fillStyle=gr;g.beginPath();g.arc(0,0,m,0,6.2832);g.fill();g.restore();
+  for(let i=0;i<8;i++)wBlob(g,(R()-.5)*rx*1.2,(R()-.5)*ry*1.2,rx*.24*(.5+R()),ry*.2*(.5+R()),'rgba(12,9,9,'+al(a*.4)+')',R);
+  g.strokeStyle='rgba(12,9,9,'+al(a*.35)+')';g.lineWidth=1.2;
+  for(let i=0;i<9;i++){const an=R()*6.2832,r0=.3,r1=.65+R()*.35;g.beginPath();g.moveTo(Math.cos(an)*rx*r0,Math.sin(an)*ry*r0);g.lineTo(Math.cos(an)*rx*r1,Math.sin(an)*ry*r1);g.stroke()}
+}
+function wDebris(g,n,rad,cols,R){for(let i=0;i<n;i++){const a=R()*6.2832,d=rad*(.3+R()*.75),s=1.3+R()*3;g.save();g.translate(Math.cos(a)*d,Math.sin(a)*d);g.rotate(R()*6.2832);g.fillStyle=cols[Math.floor(R()*cols.length)];g.beginPath();g.moveTo(-s,-s*.5);g.lineTo(s,-s*.7);g.lineTo(s*.5,s*.8);g.lineTo(-s*.7,s*.5);g.closePath();g.fill();g.restore()}}
+function wTank(g,R){   // gutted hull, one track blown apart, turret thrown clear with a bent barrel
+  wScorch(g,40,40,.6,R);
+  g.save();g.rotate((R()-.5)*.45);
+  g.fillStyle='#131110';g.fillRect(-15,-18,7,36);
+  g.fillStyle='#181514';g.fillRect(8,-18,7,13);g.fillRect(8,1,7,9);
+  g.strokeStyle='#1a1715';g.lineWidth=2.4;g.setLineDash([3,2]);g.beginPath();g.moveTo(15,10);g.quadraticCurveTo(26,16,22,30);g.stroke();g.setLineDash([]);
+  wPoly(g,[[-9,-16],[9,-16],[9,16],[-9,16]],3,R,'#23221f','rgba(0,0,0,.5)');
+  g.fillStyle='rgba(74,79,63,.55)';g.fillRect(-9,9,10,7);g.fillRect(2,-16,7,6);
+  wBlob(g,1,-3,6,8,'#080606',R);wGlow(g,1,-3,9);
+  wBlob(g,-4,6,4,3,'rgba(150,80,44,.35)',R);
+  g.restore();
+  const ta=R()*6.2832,td=20+R()*6;g.save();g.translate(Math.cos(ta)*td,Math.sin(ta)*td);g.rotate(R()*6.2832);
+  g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.arc(2,3,9,0,6.2832);g.fill();
+  g.fillStyle='#2a2b25';g.beginPath();g.arc(0,0,9,0,6.2832);g.fill();g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=1;g.stroke();
+  g.fillStyle='#16160f';g.beginPath();g.arc(-2,1,3.6,0,6.2832);g.fill();
+  g.strokeStyle='#1c1d19';g.lineWidth=4.2;g.lineCap='round';g.beginPath();g.moveTo(5,0);g.lineTo(15,1);g.lineTo(19,6);g.stroke();
+  g.restore();
+  wDebris(g,12,36,['#191716','#3a3d31','#4a3a30','#26241f'],R);
+}
+function wTruck(g,R){   // burnt-out chassis: bare rails, collapsed cab, charred bed, a wheel rolled away
+  wScorch(g,38,42,.6,R);
+  g.save();g.rotate((R()-.5)*.5);
+  g.strokeStyle='#171211';g.lineWidth=3;g.beginPath();g.moveTo(-6,-20);g.lineTo(-6,22);g.moveTo(6,-20);g.lineTo(6,22);g.stroke();
+  g.lineWidth=1.8;for(let y=-14;y<=20;y+=8){g.beginPath();g.moveTo(-6,y);g.lineTo(6,y);g.stroke()}
+  wPoly(g,[[-9,-20],[9,-20],[9,6],[-9,8]],3.5,R,'#2c231e','rgba(0,0,0,.5)');
+  wPoly(g,[[-7,-16],[7,-16],[7,-6],[-7,-4]],2,R,'#0b0908');
+  wPoly(g,[[-9,10],[9,9],[9,20],[-9,20]],4,R,'rgba(58,44,36,.85)');
+  g.strokeStyle='rgba(120,70,40,.5)';g.lineWidth=1.2;g.beginPath();g.moveTo(-8,13);g.lineTo(8,14);g.moveTo(-8,17);g.lineTo(8,17);g.stroke();
+  g.fillStyle='#0e0c0c';for(const w of[[-12,-13],[12,-13],[-12,14],[12,14]]){if(R()<.3)continue;g.fillRect(w[0]-2.5,w[1]-5,5,10)}
+  wGlow(g,0,-9,10);wBlob(g,3,15,4,3,'rgba(150,80,44,.3)',R);
+  g.restore();
+  g.save();g.translate(24,10+R()*8);g.rotate(R()*3);g.fillStyle='#0e0c0c';g.beginPath();g.ellipse(0,0,5,3.4,0,0,6.2832);g.fill();g.strokeStyle='#3a3230';g.lineWidth=1;g.stroke();g.restore();
+  wDebris(g,12,36,['#191514','#3d2f27','#4a3d33','#26201d'],R);
+}
+function wTurret(g,R){   // cracked emplacement ring around a black crater, barrel thrown across it
+  wScorch(g,32,32,.55,R);
+  g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.arc(3,3,14,0,6.2832);g.fill();
+  g.lineCap='butt';for(let i=0;i<7;i++){const a0=i/7*6.2832+R()*.2,a1=a0+.5+R()*.35;g.strokeStyle=R()<.5?'#5b6068':'#464b53';g.lineWidth=5+R()*2;g.beginPath();g.arc(0,0,11+R()*2,a0,a1);g.stroke()}
+  wBlob(g,0,0,9,9,'#0a0808',R);wGlow(g,0,0,9);
+  g.strokeStyle='#18191c';g.lineWidth=4;g.lineCap='round';g.beginPath();g.moveTo(-4,3);g.quadraticCurveTo(8,10,18,6);g.stroke();
+  wDebris(g,10,28,['#3a3e45','#2a2d33','#6b6f77','#1d1e21'],R);
+}
+function wRig(g,R){   // collapsed offshore rig: leg stubs in the surf, tilted half-sunk deck plates, toppled derrick, spreading oil
+  wBlob(g,0,2,62,54,'rgba(18,13,17,.34)',R);wBlob(g,3,0,46,40,'rgba(18,13,17,.34)',R);
+  g.strokeStyle='rgba(196,140,150,.14)';g.lineWidth=2;g.beginPath();g.ellipse(0,2,54,46,0,0,6.2832);g.stroke();
+  g.strokeStyle='rgba(150,100,110,.1)';g.beginPath();g.ellipse(2,0,38,32,.3,0,6.2832);g.stroke();
+  for(const sx of[-1,1])for(const sy of[-1,1]){if(R()<.25)continue;const x=sx*22,y=sy*22;g.strokeStyle='rgba(236,217,208,.32)';g.lineWidth=1.4;g.beginPath();g.arc(x,y,8.5,0,6.2832);g.stroke();g.fillStyle='#14171b';g.beginPath();g.arc(x,y,5,0,6.2832);g.fill();g.fillStyle='#2a2f36';g.beginPath();g.arc(x-1,y-1,2.4,0,6.2832);g.fill()}
+  for(const s of[[-14,-8],[12,-12],[-6,12],[16,10],[-26,6]]){g.save();g.translate(s[0]+(R()-.5)*8,s[1]+(R()-.5)*8);g.rotate((R()-.5)*1.4);wPoly(g,[[-13,-9],[12,-10],[13,8],[-12,9]],5,R,'#2b2f35','rgba(236,217,208,.22)');g.fillStyle='rgba(172,130,121,.22)';g.fillRect(-12,0,24,9);g.strokeStyle='rgba(8,8,10,.7)';g.lineWidth=1.4;g.beginPath();g.moveTo(-9,-5);g.lineTo(8,-2);g.stroke();g.restore()}
+  g.strokeStyle='#101317';g.lineWidth=1.6;for(let i=0;i<9;i++){const x=-18+R()*30,y=-20+R()*28;g.beginPath();g.moveTo(x,y);g.lineTo(x+(R()-.5)*30,y+(R()-.5)*30);g.stroke()}
+  g.lineWidth=1;g.beginPath();g.moveTo(-14,-17);g.lineTo(2,-1);g.moveTo(2,-17);g.lineTo(-14,-1);g.stroke();
+  g.strokeStyle='#1d2227';g.lineWidth=4;g.lineCap='round';g.beginPath();g.moveTo(10,-18);g.lineTo(34,-4);g.stroke();
+  g.fillStyle='rgba(233,148,106,.5)';g.beginPath();g.arc(34,-4,2,0,6.2832);g.fill();
+  wGlow(g,-4,0,12);
+  wDebris(g,16,58,['#14171b','#2b3036','#4a3a30','#3a424a'],R);
+}
+function wTrain(g,R,eng){   // gutted rail car / locomotive: torn roof, exposed ribs, missing bogies, plating peeled off
+  wScorch(g,30,eng?50:44,.5,R);
+  g.save();g.rotate((R()-.5)*.16);
+  g.fillStyle='#120e0f';for(const sx of[-1,1])for(const sy of[-1,1]){if(R()<.15)continue;g.fillRect(sx*13-2,sy*15-6,4,12)}
+  wPoly(g,eng?[[-12,-27],[12,-27],[12,29],[-12,29]]:[[-12,-26],[12,-26],[12,26],[-12,26]],3,R,'#1c1617','rgba(236,217,208,.12)');
+  g.fillStyle='rgba(92,75,76,.55)';g.fillRect(-9,eng?10:8,7,14);g.fillRect(3,-22,6,10);
+  wPoly(g,[[-8,-15],[8,-17],[9,3],[-7,5]],2.5,R,'#080606');
+  g.strokeStyle='#0d0a0b';g.lineWidth=1.5;for(let i=-20;i<=20;i+=10){g.beginPath();g.moveTo(-11,i);g.lineTo(11,i+(R()-.5)*3);g.stroke()}
+  if(eng){g.fillStyle='#2a2022';g.beginPath();g.moveTo(-12,-27);g.lineTo(-6,-37);g.lineTo(1,-33);g.lineTo(-3,-27);g.fill()}
+  wGlow(g,0,-4,9);
+  g.restore();
+  wDebris(g,10,38,['#161112','#3d2c2e','#55403f','#2a2123'],R);
+}
+const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)]};
+function wSprite(k,v){const key=k+v,d=WDEF[k];return WSP[key]||(WSP[key]=makeSprite(d[0],d[1],g=>d[2](g,rng(v*7919+key.length*104729+key.charCodeAt(0)*31))))}
+function wFlame(x,y,s,a){ctx.fillStyle='rgba(233,148,106,'+al(.75*a)+')';ctx.beginPath();ctx.arc(x,y,s,0,6.2832);ctx.fill();ctx.fillStyle='rgba(242,207,138,'+al(.85*a)+')';ctx.beginPath();ctx.arc(x,y-.5,s*.5,0,6.2832);ctx.fill()}
+const SK={boat:{Lb:24,Ls:16,Wd:9,dur:4.5,tau:2.5,list:.3,nf:2},ship:{Lb:54,Ls:43,Wd:15,dur:7,tau:3.5,list:.26,nf:3},battle:{Lb:88,Ls:74,Wd:17,dur:10,tau:5,list:.2,nf:4},carrier:{Lb:146,Ls:132,Wd:47,dur:14,tau:6,list:.1,nf:6}};
+const wyS=(w,t)=>w.wy+w.vwy*w.tau*(1-Math.exp(-t/w.tau));   // a sinking ship loses way: it coasts, slows, and the world scrolls past it
+function sinkShip(e,id){
+  const d=SK[e.ty],R=rng(id*31+7),sw=Math.ceil((d.Wd+16)*2),sh=Math.ceil(Math.max(d.Lb,d.Ls)*2+36),fa=Math.PI/2+(R()-.5)*.8;
+  const fake={ty:e.ty,wreck:1,age:0,pk:[],ln:0,nl:0,lau:null,fp:{x:Math.cos(fa)*300,y:Math.sin(fa)*300}};
+  const snap=makeSprite(sw,sh,g=>{
+    (e.ty=='battle'||e.ty=='carrier'?bigShip:seaJet)(0,0,fake);   // the intact hull, guns frozen, no wake...
+    g.globalCompositeOperation='source-atop';   // ...then battle damage painted onto the ship's own pixels only
+    g.fillStyle='rgba(10,8,8,.28)';g.fillRect(-sw/2,-sh/2,sw,sh);
+    const big=e.hh?10:0;
+    for(let i=0;i<10+big;i++)wBlob(g,(R()-.5)*d.Wd*1.8,(R()-.5)*(d.Lb+d.Ls)*.9,3+R()*d.Wd*.5,3+R()*10,'rgba(8,6,6,.55)',R);
+    for(let i=0;i<4+big/2;i++)wGlow(g,(R()-.5)*d.Wd*1.4,(R()-.5)*(d.Lb+d.Ls)*.8,6+R()*5);
+    g.globalCompositeOperation='source-over';
+  });
+  const tc=document.createElement('canvas');tc.width=snap.width;tc.height=snap.height;
+  const dy=(e.y-e.py)/DT,vy0=(e.ty=='carrier'||Math.abs(dy)>5)&&isFinite(dy)?dy:90+(e.v||0);   // its on-screen speed at the moment it dies
+  wrecks.push({k:'sink',id,ty:e.ty,wy:e.wy,vwy:90-vy0,ratio:e.ratio,t:0,...d,sw,sh,snap,tc,dir:R()<.5?-1:1,fa});
+}
+function leaveWreck(e){
+  if(!e.gnd||e.wrecked)return;e.wrecked=1;
+  const id=++wid;
+  if(e.sea){if(SK[e.ty])sinkShip(e,id);return}
+  const k=e.oil?'oil':e.ty;if(!WDEF[k])return;
+  wrecks.push({k,v:Math.floor(hs(id,Math.floor(e.wy))*4),wy:e.wy,x:e.x,rot:e.tr?(e.rot||0):hs(id,7)*6.2832,sc:e.tr?(e.sc||1):0,t0:tt,r:e.r,ne:k=='oil'?4:3});
+  if(wrecks.length>70)wrecks.shift();
+}
+function stepWrecks(){
+  for(const w of wrecks)if(w.k=='sink')w.t+=DT;
+  wrecks=wrecks.filter(w=>w.k=='sink'?w.t<w.dur+10&&scroll-wyS(w,w.t)<H+w.Lb+60:scroll-w.wy<H+90);
+}
+function drawRubble(w,x,y){
+  const d=WDEF[w.k],age=tt-w.t0;
+  ctx.save();ctx.translate(x,y);ctx.rotate(w.rot);if(w.sc)ctx.scale(w.sc,w.sc);ctx.drawImage(wSprite(w.k,w.v),-d[0]/2,-d[1]/2,d[0],d[1]);ctx.restore();
+  const life=w.k=='oil'?30:w.k=='tank'||w.k=='truck'?22:16,f=1-age/life;   // embers die down and the smoke thins, then only the rubble is left
+  if(f<=0)return;
+  const s=w.sc||1;
+  if(f>.25)for(let i=0;i<w.ne;i++){const a=hs(w.v+i*3,3)*6.2832,r=hs(w.v+i*3,5)*w.r*.55,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x+Math.cos(a)*r,y+Math.sin(a)*r,(1.2+fl*1.4)*s,f*(.35+.65*fl))}
+  for(let i=0;i<3;i++){const p=(age*.35+i/3+w.v*.17)%1;ctx.fillStyle='rgba(44,38,42,'+al(.3*f*(1-p))+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.1+i*2.4+w.v)*5+p*12,y-6-p*52,(5+p*(w.k=='oil'?20:14))*s,0,6.2832);ctx.fill()}
+}
+function drawSink(w,x,y,t){   // bow goes under first: list, waterline creeping up the hull, flames and smoke dying out, oil slick, debris, ripples
+  const u=Math.min(1,t/w.dur),post=t>w.dur?Math.min(1,(t-w.dur)/10):0,prog=sm3(.1,1,u),listA=w.dir*w.list*sm3(0,.8,u),s=1-.1*sm3(0,1,u),slick=Math.min(1,t/(w.dur*.55))*(1-post),Wd=w.Wd,Lb=w.Lb,Ls=w.Ls,cy=(Lb-Ls)*.15;
+  ctx.save();ctx.translate(x,y);
+  {const rx=(Wd+8)*(1+1.1*slick)+8,ry=(Lb+Ls)*.5*(.85+.45*slick),sg=ctx.createRadialGradient(0,0,0,0,0,1);   // oil slick: dense in the middle, feathering out into the water
+   sg.addColorStop(0,'rgba(18,13,17,.4)');sg.addColorStop(.65,'rgba(18,13,17,.3)');sg.addColorStop(1,'rgba(18,13,17,0)');
+   ctx.save();ctx.translate(0,cy);ctx.scale(rx,ry);ctx.globalAlpha=al(slick);ctx.fillStyle=sg;ctx.beginPath();ctx.arc(0,0,1,0,6.2832);ctx.fill();ctx.restore()}
+  ctx.strokeStyle='rgba(196,140,150,'+al(.14*slick)+')';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,cy,(Wd+8)*(1+1.4*slick)+14,(Lb+Ls)*.5*(.95+.5*slick),0,0,6.2832);ctx.stroke();
+  if(u<1){
+    ctx.save();ctx.rotate(listA);ctx.scale(s,s);
+    ctx.strokeStyle='rgba(255,240,230,'+al(.34*(1-prog)*(1-prog))+')';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-Wd-3,-Ls);ctx.lineTo(-Wd-3,Lb-12);ctx.lineTo(0,Lb+4);ctx.lineTo(Wd+3,Lb-12);ctx.lineTo(Wd+3,-Ls);ctx.stroke();   // foam skirt round the hull
+    const tg=w.tc.getContext('2d'),soft=(Lb+Ls)*.18+8,cutY=Lb+soft-(Lb+soft+Ls)*prog,py=(cutY+w.sh/2)*2;
+    tg.setTransform(1,0,0,1,0,0);tg.globalCompositeOperation='source-over';tg.clearRect(0,0,w.tc.width,w.tc.height);tg.drawImage(w.snap,0,0);
+    const gr=tg.createLinearGradient(0,py-soft*2,0,py);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,1)');
+    tg.globalCompositeOperation='destination-out';tg.fillStyle=gr;tg.fillRect(0,0,w.tc.width,w.tc.height);tg.globalCompositeOperation='source-over';   // water swallowing the hull from the bow
+    ctx.globalAlpha=1-sm3(.88,1,u);ctx.drawImage(w.tc,-w.sw/2,-w.sh/2,w.sw,w.sh);ctx.globalAlpha=1;
+    const yc=cutY-soft*.4;
+    if(yc>-Ls-4&&yc<Lb+4){   // surf where the water meets the deck
+      ctx.beginPath();for(let xx=-Wd-5;xx<=Wd+5;xx+=3){const yy=yc+Math.sin(tt*6+xx*.5)*1.8;xx==-Wd-5?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy)}
+      ctx.strokeStyle='rgba(255,240,230,.22)';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=2;ctx.stroke();
+    }
+    if(yc<Lb)for(let i=0;i<14;i++){const ph=(tt*.8+hs(i,w.id)*3)%1,bx=(hs(i,w.id+5)-.5)*(Wd*2+10),by=yc+hs(i,w.id+9)*(Lb-yc+14);ctx.strokeStyle='rgba(255,240,230,'+al(.55*(1-ph))+')';ctx.lineWidth=1;ctx.beginPath();ctx.arc(bx,by,1+ph*3.2,0,6.2832);ctx.stroke()}   // escaping air
+    const fi=1-sm3(.5,.95,u);
+    if(fi>0)for(let i=0;i<w.nf;i++){const fy=-Ls*.6+i*(Lb+Ls*.6)/w.nf,fx=(hs(i,w.id+2)-.5)*Wd*1.1;if(fy>cutY-6)continue;const fl=.5+.5*Math.sin(tt*11+i*2.1);wFlame(fx,fy,(2.2+fl*2+Wd*.06)*fi,fi)}   // deck fires go out as they go under
+    ctx.restore();
+  }
+  const fs=1-sm3(.55,1,u);
+  if(fs>0)for(let k=0;k<(Wd>20?4:2);k++){const bx=(k%2?.3:-.3)*Wd*(k>1?2:1),by=-Ls*.4+k*Lb*.3;for(let i=0;i<5;i++){const p=(tt*.4+i/5+k*.31)%1;ctx.fillStyle='rgba(40,34,38,'+al(.3*fs*(1-p))+')';ctx.beginPath();ctx.arc(bx+Math.sin(tt*.9+i*2+k)*5+p*14,by-8-p*64,6+p*(14+Wd*.2),0,6.2832);ctx.fill()}}   // black smoke
+  const nd=6+(Wd>14?6:0);
+  for(let i=0;i<nd;i++){const dl=.15+hs(i,w.id+11)*.5,ap=sm3(dl,dl+.2,u)*(1-post);if(ap<=0)continue;
+    const sp=1+1.6*u+post*.4,px=(hs(i,w.id+13)-.5)*Wd*1.6*sp+Math.sin(t*.5+i)*3,py=(hs(i,w.id+17)-.5)*(Lb+Ls)*.8*(1+.5*u)+t*3*(hs(i,w.id+19)-.4),sz=1.5+hs(i,w.id+21)*3.5;
+    ctx.save();ctx.translate(px,py);ctx.rotate(hs(i,w.id+23)*6.28+t*.3*(i%2?1:-1));ctx.fillStyle=i%5==0?'rgba(196,87,74,'+al(ap)+')':'rgba(24,22,24,'+al(ap)+')';ctx.fillRect(-sz,-sz*.4,sz*2,sz*.8);ctx.restore()}   // floating wreckage
+  if(t>w.dur*.75){const q=(t-w.dur*.75)/4;for(let i=0;i<2;i++){const p=q-i*.35;if(p<=0||p>1)continue;ctx.strokeStyle='rgba(255,240,230,'+al(.4*(1-p))+')';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,cy,Wd+6+p*(Wd+30),(Lb+Ls)*.25+p*(Lb*.5+20),0,0,6.2832);ctx.stroke()}}   // ripples where it went down
+  if(u>=1&&t<w.dur+3)for(let i=0;i<6;i++){const ph=(tt*.7+hs(i,w.id+31)*3)%1;ctx.strokeStyle='rgba(255,240,230,'+al(.5*(1-ph)*(1-(t-w.dur)/3))+')';ctx.lineWidth=1;ctx.beginPath();ctx.arc((hs(i,w.id+33)-.5)*Wd*1.6,cy+(hs(i,w.id+37)-.5)*(Lb+Ls)*.5,1+ph*3.5,0,6.2832);ctx.stroke()}
+  ctx.restore();
+}
+function drawWrecks(){   // sits on the ground layer, under live enemies and the burning-slick fires
+  const sc=scroll+(paused?0:(state=='menu'?50:90)*DT*alpha);
+  for(const w of wrecks){
+    if(w.k=='sink'){const t=w.t+(paused?0:DT*alpha),wy=wyS(w,t);drawSink(w,gndX(wy,w.ratio,2),sc-wy,t);continue}
+    const y=sc-w.wy;if(y<-90||y>H+90)continue;drawRubble(w,w.x,y);
+  }
 }
 
 // ---------- spawn director ----------
@@ -1362,7 +1539,7 @@ function draw(){
     ctx.strokeStyle='rgba(236,217,208,.8)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,my-10);ctx.lineTo(W,my-10);ctx.moveTo(0,my+10);ctx.lineTo(W,my+10);ctx.stroke();
     ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.5;ctx.setLineDash([12,10]);ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(W,my);ctx.stroke();ctx.setLineDash([]);
   }
-  drawFires();
+  drawWrecks();drawFires();
   for(const e of en)if(e.gnd)drawEnemy(e);
   for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
   for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
