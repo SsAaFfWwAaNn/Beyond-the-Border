@@ -378,8 +378,8 @@ const SFX=(()=>{
   function tick(){
     if(!ac||lv<1)return;
     const now=ac.currentTime,play=state=='play'&&!paused&&P[0]&&P[0].alive;
-    to(eng,'eng',play?.06:0,.3);
-    to(whn,'whn',play?.01:0,.4);
+    to(eng,'eng',0,.3);   // player jet engine drone removed
+    to(whn,'whn',0,.4);
     to(heli,'heli',play&&en.some(e=>e.ty=='heli'||e.ty=='chinook')?.12:0,.4);
     to(trn,'trn',play&&en.some(e=>e.tr)?.1:0,.5);
     const dk=play?en.filter(e=>e.ty=='kamikaze'&&!e.dead&&e.y>-30):[];
