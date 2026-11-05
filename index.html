@@ -119,6 +119,7 @@ h1{margin:0;font-size:clamp(2rem,9vw,2.7rem);font-weight:700;line-height:1;lette
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:.88rem}
 kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 0 0 4px;border-radius:6px;border:1px solid rgba(236,217,208,.4);border-bottom-width:3px;background:rgba(236,217,208,.08);font:600 .76rem 'Hind Siliguri',system-ui,sans-serif;text-align:center;box-sizing:border-box;color:var(--cream)}
 @media (prefers-reduced-motion:reduce){.ic{animation:none}button{transition:none}}
+#online.duo{background-image:linear-gradient(180deg,rgba(108,150,142,.24),rgba(40,48,56,0) 45%)}#online.duo .otop h2{letter-spacing:.06em}#oduo{margin:0 0 10px;line-height:1.4}
 </style></head>
 <body>
 <canvas id="bg"></canvas>
@@ -135,24 +136,26 @@ kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 0 0 4px;border-
 </div>
 <div id="mid">
 <div><h1>Beyond the Border</h1><div class="sub">সীমানার বাইরে</div><div id="msg">Choose your sortie</div></div>
-<div class="modes">
-<button id="b0" class="mode main"><b>Mission</b><span>Endless swarm</span></button>
+<div class="modes" id="mlist">
+<button id="b0" class="mode main"><b>Mission</b><span>Solo or Duo co-op</span></button>
 <button id="b1" class="mode"><b>Player vs bot</b><span>First to 3 rounds</span></button>
 <button id="b2" class="mode"><b>Player vs player</b><span>Same screen</span></button>
 <button id="b3" class="mode"><b>Online duel</b><span>1v1 matchmaking</span></button>
 </div>
+<div id="msel" class="modes" style="display:none"><button id="ms1" class="mode main"><b>Solo</b><span>Fly the mission alone</span></button><button id="ms2" class="mode main"><b>Duo</b><span>Co-op with a friend, online</span></button><button id="ms0" class="mode"><b>Back</b><span>Other modes</span></button></div>
 <div id="mon" class="cap"></div>
 </div>
 <p class="hint"><b>P1</b> WASD + Space &nbsp;·&nbsp; <b>P2</b> Arrows + Enter<br>Mission and bot matches also accept arrows + Space, Enter or Z<br>Touch: drag anywhere to steer, your jet fires automatically<br>Two players on one phone: one finger each, in your own half<br>Pause with Esc or P &nbsp;·&nbsp; Sound with M</p>
 </div>
 <div id="online">
-<div class="otop"><button id="oback" class="alt back">← Back</button><div><h2>Online duel</h2><div class="cap">Playing as <b id="oname"></b> · <span id="ocount"></span></div></div></div>
+<div class="otop"><button id="oback" class="alt back">← Back</button><div><h2 id="otit">Online duel</h2><div class="cap">Playing as <b id="oname"></b> · <span id="ocount"></span></div></div></div>
 <div id="ostat"></div>
+<p id="oduo" class="cap" style="display:none"></p>
 <section class="osec"><button id="ofind">Find a match</button><button id="oinv" class="alt">Invite a friend</button><div id="ocode"></div>
 <div id="olink" style="display:none"><button id="ocopy">Copy invite link</button><button id="oshare" class="alt">Share</button></div></section>
-<section class="osec"><h3>Join with a code</h3><div class="orow"><input id="ojc" maxlength="5" placeholder="5-character code"><button id="ojoin">Join</button></div></section>
-<section class="osec"><h3>Challenge by username</h3><div class="orow"><input id="ouser" maxlength="14" placeholder="Their username"><button id="ouserb">Send</button></div></section>
-<section class="osec"><h3>Pilots online</h3><div id="plist"></div></section>
+<section class="osec"><h3 id="h3a">Join with a code</h3><div class="orow"><input id="ojc" maxlength="5" placeholder="5-character code"><button id="ojoin">Join</button></div></section>
+<section class="osec"><h3 id="h3b">Challenge by username</h3><div class="orow"><input id="ouser" maxlength="14" placeholder="Their username"><button id="ouserb">Send</button></div></section>
+<section class="osec"><h3 id="h3c">Pilots online</h3><div id="plist"></div></section>
 </div>
 <div id="res"><div class="card"><h2 id="rtit"></h2><div id="rtxt"></div><button id="rok">OK</button></div></div>
 <div id="ibar" aria-live="polite"></div>
@@ -162,7 +165,7 @@ const cv=document.getElementById('c'),W=480,H=720,DT=1/60;let ctx=cv.getContext(
 const menu=document.getElementById('menu'),msg=document.getElementById('msg');
 const K={},pc=[mkP(),mkP()],ptr=pc[0],FONT="'Hind Siliguri',system-ui,sans-serif";
 const C={rose:'#b48c82',ink:'#182322',slate:'#343f49',grey:'#535962',cream:'#ecd9d0',ember:'#e9946a',brick:'#c4574a'};
-let pops=[],paused=false,rb=0,mode='mission',state='menu',P=[],bul=[],en=[],parts=[],queue=[],score=[0,0],timer=0,tt=0,scroll=0,pts=0,best=0,seed=7,mt=0,sp=1;
+let coMode=false,co=null,pops=[],paused=false,rb=0,mode='mission',state='menu',P=[],bul=[],en=[],parts=[],queue=[],score=[0,0],timer=0,tt=0,scroll=0,pts=0,best=0,seed=7,mt=0,sp=1;
 try{best=+localStorage.getItem('beyondBorderBest')||0}catch(e){}
 const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 const hs=(a,b)=>{let h=Math.imul(a*374761393+b*668265263,1274126177);h^=h>>>13;h=Math.imul(h,1103515245);return((h^h>>>16)>>>0)/4294967296};
@@ -470,21 +473,21 @@ cv.addEventListener('pointermove',e=>{
 });
 const pend=e=>{for(const c of pc)if(c.id===e.pointerId)c.on=false};
 addEventListener('pointerup',pend);addEventListener('pointercancel',pend);
-document.getElementById('b0').onclick=()=>start('mission');
+document.getElementById('b0').onclick=()=>{document.getElementById('mlist').style.display='none';document.getElementById('msel').style.display=''};
 document.getElementById('b1').onclick=()=>start('cpu');
 document.getElementById('b2').onclick=()=>start('2p');
 // ---------- pause ----------
 const $=id=>document.getElementById(id),pbtn=$('pbtn'),pmenu=$('pause');
 function setPause(v){
   if(v&&!(state=='play'||state=='between'))return;
-  if(mode=='online'&&state!='menu'){pmenu.classList.toggle('show',v);return}   // online: the world never freezes
+  if((mode=='online'||co)&&state!='menu'){pmenu.classList.toggle('show',v);return}   // online: the world never freezes
   paused=v;pmenu.classList.toggle('show',v);for(const c of pc){c.on=false;c.dx=c.dy=0}
 }
-function togglePause(){setPause(mode=='online'?!pmenu.classList.contains('show'):!paused)}
+function togglePause(){setPause((mode=='online'||co)?!pmenu.classList.contains('show'):!paused)}
 pbtn.onclick=()=>setPause(true);
 $('presume').onclick=()=>setPause(false);
 $('prestart').onclick=()=>{setPause(false);start(mode)};
-$('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on)netLeave();endMenu();if(on)openOnline()};
+$('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on||co)netLeave();co=null;endMenu();if(on)openOnline()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode!='online')setPause(true);if(!document.hidden&&wait&&oroom)try{roomCheck()}catch(e){}});
 addEventListener('blur',()=>{if(mode!='online')setPause(true)});
 // ---------- sharp MiG-29 style silhouette (top-down) ----------
@@ -523,14 +526,14 @@ function jet(x,y,dir,pal,g){
 }
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
-function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=m=='online'?'none':'';$('pquit').textContent=m=='online'?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
+function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.rec=-1;co.sent=-1;co.loc=[];co.rem={};co.h={};co.rh={};co.hq=[];co.fs=0;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y,dir:-1,g:1,cd:0};co.vb=[]}bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
+function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 // gun layouts by gun count (x offsets in jet-model units). GE = y of the wing's leading edge at that x, so every barrel sits right on the airframe
 const GUNS=[[0],[-7,7],[-13,0,13],[-20,-7,7,20],[-27,-13,0,13,27]],GE={7:-5,13:0,20:5,27:10};
-function fire(p){if(p.cd>0)return;p.cd=.22;SFX.shoot(p);
+function fire(p){if(p.cd>0)return;p.cd=.22;if(!(co&&p.i==co.me))SFX.shoot(p);
   for(const gx of GUNS[Math.min(5,p.g||1)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;   // muzzle tip: nose for the centre gun, barrel end for wing guns
-    bul.push({x:p.x+gx*.9,y:p.y-p.dir*(tip-2)*.9,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}if(mode=='online'&&p.i==0){net.fc++;net.fx=p.x;net.fy=p.y}}
+    bul.push({x:p.x+gx*.9,y:p.y-p.dir*(tip-2)*.9,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}if((mode=='online'&&p.i==0)||(co&&p.i==lp())){net.fc++;net.fx=p.x;net.fy=p.y}}
 function ai(p){
   const e=P[0];let dodge=0;
   for(const b of bul)if(b.o==0&&Math.abs(b.x-p.x)<34&&b.y<p.y&&p.y-b.y<230)dodge=p.x<b.x?-1:1;
@@ -542,7 +545,7 @@ function control(p){
   let a;
   if(p.i==1&&mode=='cpu')a=ai(p);
   else{
-    const c=p.i==0,A=mode!='2p',q=pc[p.i];
+    const lq=lp(),c=p.i==lq,A=mode!='2p',q=pc[p.i==lq?0:p.i];
     const l=c?K.KeyA||(A&&K.ArrowLeft):K.ArrowLeft,r=c?K.KeyD||(A&&K.ArrowRight):K.ArrowRight;
     const u=c?K.KeyW||(A&&K.ArrowUp):K.ArrowUp,d=c?K.KeyS||(A&&K.ArrowDown):K.ArrowDown;
     a={mx:(r?1:0)-(l?1:0),my:(d?1:0)-(u?1:0),sp:290,f:c?K.Space||(A&&(K.Enter||K.KeyZ)):K.Enter};
@@ -563,6 +566,7 @@ function hurt(q,d,x,y){
   q.hp-=d;if(q===P[0])lastHit=tt;burst(x,y,C.ember,5);SFX.hurt(d,q.x,q===P[0]||mode=='2p');
   if(q.hp>0)return;
   q.hp=0;q.alive=false;SFX.die(q);burst(q.x,q.y,C.ember,40);burst(q.x,q.y,C.cream,22);burst(q.x,q.y,C.ink,14);
+  if(co&&P.some(o=>o.alive)){q.rs=9;pop(q.x,q.y-24,'DOWN · back in 9s');return}
   state='between';timer=2.4;
   if(mode=='mission'){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}}
   else score[1-q.i]++;
@@ -666,7 +670,7 @@ function chinookJet(x,y,e){   // large tandem-rotor helicopter: two spinning pro
   ctx.restore();
 }
 function seaJet(x,y,e){   // patrol boat and ship: bow toward the player, wake behind
-  const p=e.wreck?e.fp:P[0],t=e.ty,ship=t=='ship',fl=Math.sin(e.age*5)*1.5;
+  const p=e.wreck?e.fp:T(e),t=e.ty,ship=t=='ship',fl=Math.sin(e.age*5)*1.5;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
   ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=2;
   if(!e.wreck)for(const s of[-1,1]){ctx.beginPath();ctx.moveTo(s*(ship?12:7),ship?-42:-14);ctx.lineTo(s*(ship?24:14)+fl,ship?-90:-44);ctx.stroke()}
@@ -711,7 +715,7 @@ function deckJet(px,py,sc,lift,fl){   // a striker seen on the deck: small while
   ctx.fillStyle=m.cc;ctx.fill(m.can);ctx.restore();
 }
 function bigShip(x,y,e){   // battleship and aircraft carrier: bow toward the player, wake behind
-  const p=e.wreck?e.fp:P[0],car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?CL:72,Wd=car?CW:16;
+  const p=e.wreck?e.fp:T(e),car=e.ty=='carrier',fl=Math.sin(e.age*4)*2,L=car?CL:72,Wd=car?CW:16;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
   ctx.strokeStyle='rgba(255,240,230,.5)';ctx.lineWidth=car?3.2:2.4;
   if(!e.wreck)for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*(Wd-2),L-30);ctx.lineTo(sd*(Wd+14)+fl,-L-50);ctx.stroke()}
@@ -758,7 +762,7 @@ function starJet(x,y,e){   // star-shaped military plane that spins while it fir
   ctx.restore();
 }
 function gndJet(x,y,e){   // ground units face the player; their guns track you
-  const p=P[0],aim=p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2,t=e.ty;
+  const p=T(e),aim=p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2,t=e.ty;
   ctx.save();ctx.translate(x,y);ctx.lineCap='round';
   if(t=='truck'){
     ctx.fillStyle='rgba(20,18,16,.22)';ctx.fillRect(-6,-15,22,40);
@@ -786,7 +790,7 @@ function gndJet(x,y,e){   // ground units face the player; their guns track you
   ctx.restore();
 }
 function trainSeg(x,y,e){   // engine + gun carts running up the track beside you
-  const p=P[0],r=e.rot||0,eng=e.ty=='trainE',cy=eng?10:0,aim=(p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2)-r,sc=e.sc||1;
+  const p=T(e),r=e.rot||0,eng=e.ty=='trainE',cy=eng?10:0,aim=(p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2)-r,sc=e.sc||1;
   ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.scale(sc,sc);ctx.lineCap='round';
   if(e.tier>=3){ctx.strokeStyle='rgba(233,148,106,.7)';ctx.lineWidth=2;ctx.strokeRect(-14,-28,28,56)}   // armour plating on late trains
   ctx.fillStyle='rgba(20,18,16,.22)';ctx.fillRect(-9,-24,28,56);
@@ -844,7 +848,7 @@ function oilField(){   // two or three oil rigs sit in the gulf; blowing one up 
 }
 function blast(e){   // drone explosion: area damage to you and a little to anything flying close by (other drones are not set off)
   SFX.blast(e.x);const p=P[0],R=80;rings.push({x:e.x,y:e.y,t:0});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
-  if(p&&p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y)}
+  for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y)}
   for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<R-10){o.hp-=22;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
 function kamikaze(nn){   // suicide drones dive in from the top and home in on you
@@ -872,7 +876,7 @@ function killE(e){
   if(e.oil){   // oil rig explodes: area damage now, then the slick burns for a while
     const R=115,q=P[0];fires.push({x:e.x,wy:e.wy,t:0,life:14,tk:0});pop(e.x,e.y-30,'OIL RIG +'+e.pts);
     for(let i=0;i<4;i++)burst(e.x+(rnd()-.5)*50,e.y+(rnd()-.5)*50,C.ember,18);
-    if(q&&q.alive){const d=Math.hypot(q.x-e.x,q.y-e.y);if(d<R)hurt(q,Math.round(30*(1-d/R*.6)),q.x,q.y)}
+    for(const q of P)if(q.alive){const d=Math.hypot(q.x-e.x,q.y-e.y);if(d<R)hurt(q,Math.round(30*(1-d/R*.6)),q.x,q.y)}
     for(const o of en)if(!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<R){o.hp-=o.oil?90:60;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
   }
   if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}if(e.ty=='carrier')for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0){const bx=e.x+cSlotX(j),by2=e.y+cSlotY(j,e.nl);burst(bx,by2,C.ember,16);burst(bx,by2,C.cream,6)}
@@ -908,10 +912,10 @@ function fireN(e,p){
 // Cargo loot: pure luck. Every cargo plane rolls the same flat odds: a rare gun (only once the jet is "due" for one), a health pack, or nothing.
 // "Due" is a randomised stage that is re-rolled every run and after every gun, so the 5-gun jet only shows up very late and never on a fixed schedule.
 const GUN_FLOOR=[0,0,5,8,12];   // earliest stage for the next gun, by the gun count you just reached (the first gun upgrade is due from stage 3-5)
-const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 function gunDue(g){return g<=1?ri(3,5):Math.max(GUN_FLOOR[g]+ri(0,3),D.stage+ri(2,4))}
 function cargoLoot(e){
-  const p0=P[0];if(!p0||!p0.alive)return;
+  const p0=P.filter(q=>q.alive).sort((a,b)=>(a.g||1)-(b.g||1))[0];if(!p0)return;
   const g=p0.g||1;if(D.gunAt===undefined)D.gunAt=gunDue(1);
   const gunP=(g<5&&D.stage>=D.gunAt)?.08:0,r=rnd();
   if(r<gunP)pickups.push({x:e.x,y:e.y,t:0,k:'gun'});
@@ -920,13 +924,13 @@ function cargoLoot(e){
 function stepFires(){
   const p=P[0];
   for(const o of pickups){o.t+=DT;o.y+=55*DT;o.x+=Math.sin(o.t*2.2)*14*DT;
-    if(p&&p.alive&&Math.hypot(p.x-o.x,p.y-o.y)<26){o.dead=1;burst(o.x,o.y,C.cream,12);
+    const p=P.find(q=>q.alive&&Math.hypot(q.x-o.x,q.y-o.y)<26);if(p){o.dead=1;burst(o.x,o.y,C.cream,12);
       if(o.k=='gun'){if((p.g||1)<5){p.g=(p.g||1)+1;D.gunAt=gunDue(p.g);pop(o.x,o.y-20,'GUN UPGRADE  '+p.g+'/5');SFX.pickup('gun')}else{pts+=300;pop(o.x,o.y-20,'MAX GUNS +300');SFX.pickup('max')}}
       else{p.hp=Math.min(100,p.hp+35);pop(o.x,o.y-20,'HEALTH +35');SFX.pickup('hp')}}}
   pickups=pickups.filter(o=>!o.dead&&o.y<H+30);
   for(const q of rings)q.t+=DT;rings=rings.filter(q=>q.t<.5);
   for(const f of fires){f.t+=DT;f.tk-=DT;
-    if(f.t>1.2&&f.t<f.life&&f.tk<=0&&p&&p.alive&&Math.hypot(p.x-f.x,p.y-(scroll-f.wy))<46){hurt(p,5,p.x,p.y);f.tk=.45}}
+    if(f.t>1.2&&f.t<f.life&&f.tk<=0)for(const p of P)if(p.alive&&Math.hypot(p.x-f.x,p.y-(scroll-f.wy))<46){hurt(p,5,p.x,p.y);f.tk=.45}}
   fires=fires.filter(f=>f.t<f.life&&scroll-f.wy<H+90);
   stepWrecks();
 }
@@ -1167,7 +1171,7 @@ function dirNew(){
 }
 // heat: 0 for the first ~20 s, then +1 about every 48 s; clean flying pushes it up a little, low health eases it off
 const heat=()=>Math.max(0,Math.min(8.5,(mt-18)/48+D.adapt));
-function capA(){const h=heat(),major=en.some(e=>e.tr||e.ty=='carrier'||e.ty=='battle'||e.ty=='dread');return(Math.min(12.5,4.8+2*h)+Math.max(0,h-5)*.6)*(major?.75:1)}
+function capA(){const h=heat(),k2=co&&P.filter(q=>q.alive).length>1?1.5:1,major=en.some(e=>e.tr||e.ty=='carrier'||e.ty=='battle'||e.ty=='dread');return(Math.min(12.5,4.8+2*h)+Math.max(0,h-5)*.6)*(major?.75:1)*k2}
 function loadA(){let s=0;for(const e of en){if(e.dead||e.gnd)continue;const c=COST[e.ty];if(c)s+=c*(.45+.55*e.hp/e.mhp)*((e.ty=='minion'||e.ty=='minion2')?1+Math.max(0,heat()-3)*.15:1)}for(const q of dq)s+=q.c||0;return s}
 function adaptStep(){
   if(mt<30){D.adapt=0;return}
@@ -1337,11 +1341,11 @@ function directorStep(){
 }
 function mission(){
   mt+=DT;
-  const p=P[0];
+  let p=P[0];
   directorStep();
   const tr=en.filter(e=>e.tr),tv=tr.length&&Math.min(...tr.map(e=>e.y))>170?118:90;   // train overtakes you, then keeps pace
   for(const e of en){
-    e.age+=DT;const ty=e.ty;
+    p=T(e);e.age+=DT;const ty=e.ty;
     if(e.tr){
       e.wy+=tv*DT;e.y=scroll-e.wy;e.x=railX(e.wy);e.rot=Math.atan2(railX(e.wy+8)-railX(e.wy-8),16);
       if(e.y<-120)e.dead=1;
@@ -1432,6 +1436,7 @@ function mission(){
 function step(){
   for(const o of P)o.px=o.x,o.py=o.y;for(const o of en)o.px=o.x,o.py=o.y;for(const o of bul)o.px=o.x,o.py=o.y;
   if(paused)return;
+  if(co&&state!='menu'&&!coGate())return;
   tt+=DT;scroll+=(state=='menu'?50:90)*DT;
   for(const q of parts){q.x+=q.vx*DT;q.y+=q.vy*DT;q.l-=DT}
   parts=parts.filter(q=>q.l>0);
@@ -1440,13 +1445,13 @@ function step(){
   if(mode=='online')netStep();
   if(state=='play'&&rb>0){rb-=DT;for(const c of pc)c.dx=c.dy=0;return}
   if(state=='play'){
-    for(const p of P){if(!p.alive)continue;p.cd-=DT;if(mode=='online'&&p.i==1)continue;if(control(p))fire(p)}
-    if(mode=='mission'){mission();stepFires()}
+    for(const p of P){if(!p.alive)continue;p.cd-=DT;if(mode=='online'&&p.i==1)continue;if(co){const a=cget(p.i,co.cur);p.x=a[0];p.y=a[1];if(a[2])fire(p)}else if(control(p))fire(p)}
+    if(mode=='mission'){mission();stepFires();if(co)hStep()}
   }
   for(const b of bul){
     b.tr.push({x:b.x,y:b.y});if(b.tr.length>26)b.tr.shift();b.x+=b.vx*DT;b.y+=b.vy*DT;
     if(state=='play'){
-      if(b.o==2){const q=P[0];if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y)}}
+      if(b.o==2){for(const q of P)if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y);break}}
       else if(mode=='mission'){
         for(const e of en)if(!e.dead&&!(e.warn>0)&&(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r)){
           if(e.ty=='carrier'){const j=parkedHit(e,b);if(j>=0){b.dead=1;e.pk[j]-=b.d;burst(b.x,b.y,C.cream,3);SFX.hitE(b.x,1);if(e.pk[j]<=0)killPark(e,j);break}}
@@ -1462,7 +1467,7 @@ function step(){
   if(state=='between'){
     timer-=DT;
     if(timer<=0){
-      if(mode=='mission'){msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
+      if(mode=='mission'){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}if(co){netLeave();co=null}msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
       else if(mode=='online'){if((score[0]>=winAt()||score[1]>=winAt())&&score[0]!=score[1])SFX.stinger(score[0]>score[1]?'victory':'defeat'),netEnd((score[0]>score[1]?'You win the match!':net.oname+' wins the match.')+' ('+score[0]+'–'+score[1]+')',score[0]>score[1]?'Victory':'Defeat');else{net.rn++;reset()}}
       else if(score[0]>=winAt()||score[1]>=winAt()){SFX.stinger(mode=='2p'||score[0]>score[1]?'victory':'defeat');
         msg.textContent=(score[0]>score[1]?(mode=='cpu'?'You win the match!':'P1 wins the match!'):(mode=='cpu'?'The bot wins the match.':'P2 wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
@@ -1470,7 +1475,7 @@ function step(){
     }
   }
 }
-function endMenu(){state='menu';paused=false;if(!net.on&&!wait&&RM&&lst=='busy'){lst='idle';pushLobby()}bestv.textContent=$('bestm').textContent=best;pbtn.classList.remove('show');menu.classList.remove('hide')}
+function endMenu(){$('msel').style.display='none';$('mlist').style.display='';state='menu';paused=false;if(!net.on&&!wait&&RM&&lst=='busy'){lst='idle';pushLobby()}bestv.textContent=$('bestm').textContent=best;pbtn.classList.remove('show');menu.classList.remove('hide')}
 // ---------- terrain: rose ocean gulf between grey desert coasts ----------
 const vn=(y,s)=>{const g=y/26,i=Math.floor(g),f=g-i,u=f*f*(3-2*f);return hs(i,s)*(1-u)+hs(i+1,s)*u};
 const NY=Math.ceil((H+16)/6)+1,LC=new Array(NY),RC=new Array(NY);
@@ -1544,15 +1549,16 @@ function draw(){
   for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
   for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
   drawPickups();
-  for(const p of P)if(p.alive)jet(ix(p,'x'),ix(p,'y'),p.dir,p.pal,p.g||1);
+  for(const p of P)if(p.alive){const q=co&&p.i==co.me?co.gh:p;jet(ix(q,'x'),ix(q,'y'),p.dir,p.pal,p.g||1)}
   ctx.lineCap='round';
-  for(const b of bul){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
-  for(const b of bul)trail(b);
-  for(const b of bul){
+  const BL=co?bul.filter(b=>b.o!=co.me).concat(co.vb||[]):bul;
+  for(const b of BL){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
+  for(const b of BL)trail(b);
+  for(const b of BL){
     if(b.o==2){ctx.fillStyle=C.ember;ctx.beginPath();ctx.arc(b.x,b.y,3.6,0,6.28);ctx.fill();ctx.fillStyle='#fbe3c9';ctx.beginPath();ctx.arc(b.x,b.y,1.6,0,6.28);ctx.fill()}
     else{ctx.fillStyle=b.o?'#ffc2b0':'#fff3ea';ctx.fillRect(b.x-1.6,b.y-6,3.2,12)}
   }
-  for(const b of bul){b.x=b.ox;b.y=b.oy}
+  for(const b of BL){b.x=b.ox;b.y=b.oy}
   for(const q of parts){ctx.globalAlpha=Math.max(0,q.l*1.6);ctx.fillStyle=q.c;ctx.fillRect(q.x,q.y,3,3)}
   ctx.globalAlpha=1;
   for(const q of pops){ctx.globalAlpha=Math.min(1,q.t*2);txt(q.s,q.x,q.y,15,C.cream)}
@@ -1560,7 +1566,7 @@ function draw(){
   for(const e of en)if(e.warn>0&&Math.floor(e.warn*8)%2==0){const x=e.d>0?18:W-18;ctx.fillStyle=C.brick;ctx.beginPath();ctx.moveTo(x+e.d*12,e.y);ctx.lineTo(x-e.d*8,e.y-12);ctx.lineTo(x-e.d*8,e.y+12);ctx.fill();txt('!',x-e.d*22,e.y,16,C.cream)}
   if(!P.length)return;
   if(mode=='mission'){
-    bar(P[0],H-22,'Health');
+    if(co){bar(P[lp()],H-22,'You');bar(P[1-lp()],H-40,net.oname||'Partner');const mp=P[lp()];if(!mp.alive&&mp.rs>0&&state=='play')txt('Back in '+Math.ceil(mp.rs),W/2,H/2,26,C.cream)}else bar(P[0],H-22,'Health');
     txt('Score',14,16,11,'rgba(236,217,208,.7)','left',500);txt(String(pts),14,36,24,C.cream,'left');
     txt(Math.floor(mt/60)+':'+String(Math.floor(mt%60)).padStart(2,'0'),W-62,26,22,C.cream,'right');
     txt('Stage '+D.stage,W-62,46,12,'rgba(236,217,208,.7)','right',500);
@@ -1624,7 +1630,7 @@ async function mkRoom(name,hot){
       }
       return out;
     };
-    const room={name,peers:build,connected:()=>ok,
+    const room={name,peers:build,connected:()=>ok,sendG:p=>{try{ch.send({type:'broadcast',event:'g',payload:p})}catch(e){}},
       onPeers(fn){const f=()=>fn({peers:build(),joined:[],left:[],updated:[]});subs.add(f);setTimeout(f,0);return()=>subs.delete(f)},
       async presence(patch){
         for(const k in patch){if(patch[k]===null)delete mine[k];else mine[k]=patch[k]}
@@ -1637,6 +1643,7 @@ async function mkRoom(name,hot){
     if(!hot)hbT=setInterval(()=>{if(ok){mine.hb=(mine.hb||0)+1;room.presence({hb:mine.hb}).catch(()=>{})}},4000);   // lobby heartbeat: also re-announces us after a dropped connection
     ch.on('presence',{event:'sync'},()=>subs.forEach(f=>f()));
     ch.on('broadcast',{event:'p'},({payload})=>{if(payload&&payload.k){hotS[payload.k]={s:payload.s,at:Date.now()};if(room.hook)try{room.hook()}catch(e){}}});
+    ch.on('broadcast',{event:'g'},({payload})=>{if(room.onG)try{room.onG(payload)}catch(e){}});
     ch.on('broadcast',{event:'bye'},({payload})=>{if(payload&&payload.k){const h=hotS[payload.k];hotS[payload.k]={s:{...(h?h.s:{}),bye:1},at:Date.now()}}});
     const fail=e=>{if(done)return;done=true;clearTimeout(to);clearInterval(hbT);try{SBC.removeChannel(ch)}catch(x){}reject(new Error(e))};   // never leave a half-open channel behind
     const to=setTimeout(()=>fail('timeout'),12000);
@@ -1669,9 +1676,12 @@ if(!nm.value)nm.value='Pilot'+(100+Math.floor(Math.random()*900));
 nm.onchange=()=>{nm.value=myName();try{localStorage.setItem('beyondBorderName',nm.value)}catch(e){}if(RM&&!net.on)pushLobby()};
 for(const id of['nm','ojc','ouser'])$(id).addEventListener('keydown',e=>e.stopPropagation());
 const pushLobby=()=>{if(RM)RM.presence({n:myName(),st:lst,off:offer||null})};
-function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'Cancel search':'Find a match';$('ofind').disabled=b&&lst!='queue';$('oinv').textContent=b&&lst!='queue'?'Cancel':'Invite a friend';$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
+function duoUI(){const d=coMode;onl.classList.toggle('duo',d);$('otit').textContent=d?'Duo Campaign':'Online duel';$('oduo').style.display=d?'':'none';
+  $('oduo').textContent='Fly the Mission together: one swarm, one shared score, one run. Invite a friend or find a partner online.';
+  $('h3a').textContent=d?'Join your friend’s mission':'Join with a code';$('h3b').textContent=d?'Invite by username':'Challenge by username';$('h3c').textContent=d?'Pilots to fly with':'Pilots online';$('ouserb').textContent=d?'Invite':'Send'}
+function syncBtns(){const b=!!wait;$('ofind').textContent=lst=='queue'?'Cancel search':(coMode?'Find a partner':'Find a match');$('ofind').disabled=b&&lst!='queue';$('oinv').textContent=b&&lst!='queue'?'Cancel':(coMode?'Invite a friend to fly':'Invite a friend');$('oinv').disabled=lst=='queue';$('ojoin').disabled=$('ojc').disabled=b||lst=='queue';$('ouser').disabled=$('ouserb').disabled=b||lst=='queue';$('olink').style.display=wait&&wait.kind=='inv'?'flex':'none';if(!b)$('ocode').textContent=''}
 async function openOnline(){
-  nm.onchange();menu.classList.add('hide');onl.classList.add('show');$('oname').textContent=myName();ost.textContent='';$('ocount').textContent='connecting…';$('plist').textContent='';psig='';
+  duoUI();nm.onchange();menu.classList.add('hide');onl.classList.add('show');$('oname').textContent=myName();ost.textContent='';$('ocount').textContent='connecting…';$('plist').textContent='';psig='';
   for(const id of['ofind','oinv','ojoin','ouserb'])$(id).disabled=true;   // no clicks while the lobby is (re)connecting
   ost.textContent='Connecting to the online server…';
   if(RM&&needFresh)await resetLobby();needFresh=0;psig='';for(const k in dismissed)delete dismissed[k];
@@ -1691,16 +1701,16 @@ function lobbyTick(){
   const ps=RM.peers(),me=ps.find(p=>p.sameTab),others=ps.filter(p=>!p.isMe&&p.kind=='viewer'&&p.presence.n&&Date.now()-p.updatedAt<20000);
   $('ocount').textContent=RM.connected()?(others.length+1)+' online':'connecting…';
   $('mon').textContent=RM.connected()?'● '+(others.length+1)+' pilot'+(others.length?'s':'')+' online':'';
-  const sig=others.map(p=>p.peer+p.presence.n+p.presence.st).join('|')+lst+!!wait;
+  const sig=others.map(p=>p.peer+p.presence.n+p.presence.st).join('|')+lst+!!wait+coMode;
   if(sig!=psig){psig=sig;const pl=$('plist');pl.textContent='';
     if(!others.length)pl.textContent='No other pilots online right now. Share the link with a friend!';
     for(const p of others.slice(0,8)){const d=document.createElement('div'),s=document.createElement('span');d.className='pl';
       s.textContent=clean(p.presence.n)+(p.presence.st=='queue'?' · searching':p.presence.st=='idle'?' · on menu':' · in match');d.appendChild(s);
-      if(p.presence.st=='idle'&&!wait&&lst=='idle'){const b=document.createElement('button');b.textContent='Challenge';b.onclick=()=>challenge(p);d.appendChild(b)}
+      if(p.presence.st=='idle'&&!wait&&lst=='idle'){const b=document.createElement('button');b.textContent=coMode?'Invite':'Challenge';b.onclick=()=>challenge(p);d.appendChild(b)}
       pl.appendChild(d)}}
   if(!me)return;
   const canGet=state=='menu'&&(lst=='idle'||(wait&&wait.kind=='q'));   // on the menu / online screen, or searching
-  renderInv(canGet?others.filter(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='ch'&&!dismissed[p.presence.off.code]).map(p=>({code:p.presence.off.code,peer:p.peer,name:clean(p.presence.n)||'Pilot'})):[]);
+  renderInv(canGet?others.filter(p=>p.presence.off&&p.presence.off.to===me.peer&&p.presence.off.kind=='ch'&&!dismissed[p.presence.off.code]).map(p=>({code:p.presence.off.code,peer:p.peer,name:clean(p.presence.n)||'Pilot',co:p.presence.off.co})):[]);
 }
 const ibar=$('ibar');let invSig='',openInv=null;
 function renderInv(list){   // side bar: one icon per pending challenge; tap an icon to open ACCEPT / DECLINE
@@ -1714,7 +1724,7 @@ function renderInv(list){   // side bar: one icon per pending challenge; tap an 
     ic.onclick=()=>{openInv=openInv===v.code?null:v.code;renderInv(list)};row.appendChild(ic);
     if(open){
       const pn=document.createElement('div');pn.className='ip';
-      const nme=document.createElement('b');nme.textContent=v.name;const t=document.createElement('span');t.textContent='wants a 1v1 duel';
+      const nme=document.createElement('b');nme.textContent=v.name;const t=document.createElement('span');t.textContent=v.co?'invites you to a co-op mission':'wants a 1v1 duel';
       const a=document.createElement('button'),d=document.createElement('button');a.textContent='Accept';d.textContent='Decline';d.className='alt';
       a.onclick=()=>{openInv=null;acceptInv(v)};d.onclick=()=>{dismissed[v.code]=1;openInv=null;renderInv(list.filter(x=>x!==v));lobbyTick()};
       pn.append(nme,t,a,d);row.appendChild(pn);
@@ -1724,6 +1734,7 @@ function renderInv(list){   // side bar: one icon per pending challenge; tap an 
   ibar.classList.toggle('show',list.length>0);
 }
 async function acceptInv(v){
+  coMode=!!v.co;
   if(wait&&wait.kind=='q')cancelWait('');
   if(!onl.classList.contains('show'))await openOnline();   // from the main menu: open the online screen so progress is visible
   if(!RM||wait)return;
@@ -1733,21 +1744,21 @@ async function enterRoom(code){
   const w=wait,r=await RM.join(rname(code));
   if(wait!==w){try{await r.leave()}catch(e){}return}   // cancelled or superseded while joining: do not leak the room
   oroom=r;r.hook=()=>{if(oroom===r&&wait)roomCheck()};   // react to the other pilot's heartbeat immediately
-  await r.presence({n:myName(),x:W/2,y:H-110,hp:100,rn:0,fc:0,fx:0,fy:0,t:0});
+  await r.presence({n:myName(),co:coMode?1:0,x:W/2,y:H-110,hp:100,rn:0,fc:0,fx:0,fy:0,t:0});
   if(!wt)wt=setInterval(roomCheck,250);
 }
-function acceptRoom(code,from){const rq=lst=='queue';lst='busy';offer=null;wait={code,kind:'join',t:Date.now(),rq,from};pushLobby();ost.textContent='Opponent found! Connecting…';syncBtns();enterRoom(code).catch(()=>cancelWait('Could not join the match room.'))}
+function acceptRoom(code,from){const rq=lst=='queue';lst='busy';offer=null;wait={code,kind:'join',t:Date.now(),rq,from};pushLobby();ost.textContent=coMode?'Partner found! Connecting…':'Opponent found! Connecting…';syncBtns();enterRoom(code).catch(()=>cancelWait('Could not join the match room.'))}
 function challenge(p){
   if(!RM||wait||lst!='idle')return;
-  const code=rcode(6);lst='busy';wait={code,kind:'ch',t:Date.now()};offer={to:p.peer,code,kind:'ch'};pushLobby();
+  const code=rcode(6);lst='busy';wait={code,kind:'ch',t:Date.now()};offer={to:p.peer,code,kind:'ch',co:coMode?1:0};pushLobby();
   ost.textContent='Challenge sent to '+clean(p.presence.n)+'. Waiting for them to accept…';syncBtns();
   enterRoom(code).catch(()=>cancelWait('Could not open a match room.'));
 }
 function startQueue(){
   if(!RM||net.on)return;
-  lst='queue';qs=Date.now();wait={code:'MM0',kind:'q',t:Date.now(),hb:0,sig:'',sigT:0};offer=null;
+  lst='queue';qs=Date.now();wait={code:coMode?'MM1':'MM0',kind:'q',t:Date.now(),hb:0,sig:'',sigT:0};offer=null;
   pushLobby();syncBtns();ost.textContent='Searching for an opponent…';
-  const w=wait;enterRoom('MM0').catch(()=>{if(wait===w)cancelWait('Could not reach the matchmaking room. Retrying…',1)});
+  const w=wait;enterRoom(coMode?'MM1':'MM0').catch(()=>{if(wait===w)cancelWait('Could not reach the matchmaking room. Retrying…',1)});
 }
 function queueCheck(){   // roster comes only from heartbeats we actually receive; each heartbeat lists who the sender hears and who it has chosen ("to")
   const w=wait,now=Date.now();
@@ -1765,7 +1776,7 @@ function queueCheck(){   // roster comes only from heartbeats we actually receiv
   const a=[MYKEY,part].sort(),code='PM'+a[0].slice(1)+a[1].slice(1),old=oroom;   // both sides derive the same private room name
   let lh=0;const beat=()=>{const t=Date.now();if(t-lh>=400){lh=t;old.presence({x:W/2,t:++w.hb,seen:[part],to:part}).catch(()=>{})}};
   old.hook=beat;beat();const iv=setInterval(beat,500);setTimeout(()=>{clearInterval(iv);old.hook=null;old.leave().catch(()=>{})},4000);   // keep announcing for a few seconds so the other side is sure to see our choice
-  oroom=null;wait={code,kind:'join',t:now,rq:1,from:part,hb:0};ost.textContent='Opponent found! Connecting…';
+  oroom=null;wait={code,kind:'join',t:now,rq:1,from:part,hb:0};ost.textContent=coMode?'Partner found! Connecting…':'Opponent found! Connecting…';
   const nw=wait;(async()=>{if(wait!==nw)return;try{await enterRoom(code)}catch(e){if(wait===nw)cancelWait('Could not connect to the opponent. Searching again…',1)}})();
 }
 function cancelWait(text,requeue){
@@ -1786,8 +1797,9 @@ function roomCheck(){
   if(Date.now()-wait.t>lim){if(wait.kind=='mm'&&wait.to)bad[wait.to]=Date.now();if(wait.kind=='join'){dismissed[wait.code]=1;if(wait.from)bad[wait.from]=Date.now()}cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'&&!wait.rq?'Could not find that match. Ask your friend to keep their invite screen open.':wait.kind=='join'?'Opponent did not connect. Searching again…':undefined,wait.kind=='mm'||!!wait.rq)}
 }
 function beginMatch(opp){
-  clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
-  wait=null;lst='busy';offer=null;pushLobby();renderInv([]);onl.classList.remove('show');start('online');
+  const isCo=wait&&wait.kind=='join'?!!opp.presence.co:coMode;clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
+  wait=null;lst='busy';offer=null;pushLobby();renderInv([]);onl.classList.remove('show');
+  if(isCo){co={me:MYKEY<opp.peer?0:1,seed:cseed(MYKEY,opp.peer),last:Date.now(),D:8,rtt:0};net.room.onG=coRecv;start('mission')}else start('online');
 }
 function netLeave(){
   clearInterval(wt);wt=0;try{net.room&&net.room.leave()}catch(e){}net.room=null;net.on=false;oroom=null;wait=null;offer=null;lst='idle';needFresh=gone?0:1;for(const k in bad)delete bad[k];
@@ -1809,7 +1821,7 @@ function netStep(){
     if(d.hp<=0&&o.alive){o.hp=0;o.alive=false;SFX.boom(2,o.x);SFX.stinger('win');burst(o.x,o.y,C.ember,40);burst(o.x,o.y,C.cream,22);burst(o.x,o.y,C.ink,14);score[0]++;if(state=='play'){state='between';timer=2.4}}
   }
 }
-$('b3').onclick=openOnline;
+$('b3').onclick=()=>{coMode=false;openOnline()};$('ms1').onclick=()=>start('mission');$('ms2').onclick=()=>{coMode=true;openOnline()};$('ms0').onclick=()=>{$('msel').style.display='none';$('mlist').style.display=''};
 $('ofind').onclick=()=>{if(!RM){ost.textContent='Still connecting… try again in a moment.';return}if(lst=='queue'){cancelWait('Search cancelled.');return}if(wait||lst!='idle')return;startQueue()};
 $('oinv').onclick=()=>{
   if(wait)return cancelWait('');
@@ -1826,7 +1838,7 @@ $('ojoin').onclick=()=>{
 };
 const inviteLink=()=>location.href.split('?')[0].split('#')[0]+'?join='+(wait?wait.code:'');
 $('ocopy').onclick=async()=>{const l=inviteLink();try{await navigator.clipboard.writeText(l);ost.textContent='Link copied! Send it to your friend, then wait here.'}catch(e){prompt('Copy this invite link:',l)}};
-$('oshare').onclick=()=>{const l=inviteLink();if(navigator.share)navigator.share({title:'Beyond the Border',text:'Duel me in Beyond the Border! Code '+(wait?wait.code:''),url:l}).catch(()=>{});else $('ocopy').onclick()};
+$('oshare').onclick=()=>{const l=inviteLink();if(navigator.share)navigator.share({title:'Beyond the Border',text:(coMode?'Fly a co-op mission with me in Beyond the Border! Code ':'Duel me in Beyond the Border! Code ')+(wait?wait.code:''),url:l}).catch(()=>{});else $('ocopy').onclick()};
 $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();if(!n||!RM||wait||lst!='idle')return;
   const p=RM.peers().find(p=>!p.isMe&&p.presence.n&&clean(p.presence.n).toLowerCase()==n);
   if(!p){ost.textContent='No pilot named “'+raw+'” is online right now. Use the invite link instead.';return}
@@ -1855,6 +1867,43 @@ setInterval(async()=>{
 (()=>{const c=(new URLSearchParams(location.search).get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');   // friend opened an invite link
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
 $('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remove('show');menu.classList.remove('hide')};
+
+// ---------- Mission · Duo: lockstep co-op. Both screens run the identical mission; only the two pilots' controls travel over the wire ----------
+const lp=()=>co?co.me:0;
+function T(e){let b=P[0],bd=1e9;for(const q of P)if(q.alive){const d=(q.x-e.x)**2+(q.y-e.y)**2;if(d<bd){bd=d;b=q}}return b}   // each enemy hunts the nearest living pilot
+function cseed(a,b){let h=2166136261;for(const c of[a,b].sort().join(''))h=Math.imul(h^c.charCodeAt(0),16777619);return h|0}
+const cget=(i,n)=>i==co.me?(co.loc[n]||co.init[i]):(co.rem[n]||co.init[i]),chave=(i,n)=>i==co.me||co.rem[n]!==undefined;
+function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
+function coSend(){const from=co.rem.min===undefined?0:co.sent+1,a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // until we hear the partner, keep resending from tick 0
+  net.room.sendG({t:'i',n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
+function coGate(){   // true = run this tick. A tick runs only once both pilots' controls for it are known, so both screens stay identical
+  const n=co.n;
+  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>80){co.fs=Date.now();coSend()}return false}
+  co.cur=n;const me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
+  gh.px=gh.x;gh.py=gh.y;gh.g=me.g||1;gh.cd-=DT;
+  const f=control(gh)?1:0,v=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];
+  if(f&&me.alive&&gh.cd<=0){gh.cd=.22;SFX.shoot(gh);for(const gx of GUNS[Math.min(5,gh.g)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;co.vb.push({x:gh.x+gx*.9,y:gh.y+(tip-2)*.9,vx:0,vy:-520,o:co.me,d:9,tr:[]})}}   // instant local shots (visual): the shared sim applies the real damage
+  for(const b of co.vb){b.px=b.x;b.py=b.y;b.tr.push({x:b.x,y:b.y});if(b.tr.length>26)b.tr.shift();b.y+=b.vy*DT;
+    for(const e of en)if(!e.dead&&!(e.warn>0)&&(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r)){b.dead=1;break}
+    if(b.y<-20)b.dead=1}
+  co.vb=co.vb.filter(b=>!b.dead);
+  while(co.rec<n+co.D)co.loc[++co.rec]=v;   // my controls take effect D ticks from now, covering the network delay
+  if(n%120==0){const h=chash();co.h[n]=h;co.hq.push([n,h]);if(co.rh[n]!==undefined&&co.rh[n]!==h){coDesync();return false}}
+  if(n%3==0&&!co.solo)coSend();
+  co.n++;return true}
+function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
+function coRecv(m){
+  if(!co||!m||!co.rem)return;co.last=Date.now();
+  if(m.t=='i'){const r=co.rem;if(r.min===undefined)r.min=m.n0;m.a.forEach((v,i)=>{r[m.n0+i]=v});
+    for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
+  else if(m.t=='p')net.room.sendG({t:'q',ts:m.ts});
+  else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt;const w=Math.max(2,Math.min(30,Math.ceil((co.rtt/2+22)/16.7)));co.D=w>co.D?w:Math.max(w,co.D-1)}}   // control delay adapts to the connection
+function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended';setPause(false);endMenu()}
+function coLost(){if(!co||co.solo)return;netLeave();co.solo=1;const q=P[1-co.me];if(q){q.alive=false;q.rs=0}pop(W/2,H*.3,'PARTNER LEFT');if(!P.some(o=>o.alive)&&state=='play'){state='between';timer=2.4}}
+setInterval(()=>{if(!co||!net.room||co.solo)return;const R=net.room;
+  if(Date.now()-(co.pt||0)>1000){co.pt=Date.now();R.sendG({t:'p',ts:co.pt});R.presence({n:myName(),x:Math.round(P[co.me].x),t:++net.tick})}   // ping + heartbeat
+  const r=R.peers().find(p=>p.peer===net.opp&&!p.isMe);
+  if((r&&r.presence.bye)||Date.now()-co.last>9000)coLost()},250);
 
 let last=performance.now(),acc=0;
 let alpha=0;
