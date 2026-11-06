@@ -552,7 +552,11 @@ function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40,l
 const GUNS=[[0],[-7,7],[-13,0,13],[-20,-7,7,20],[-27,-13,0,13,27]],GE={7:-5,13:0,20:5,27:10};
 function fire(p){if(p.cd>0)return;p.cd=.22;SFX.shoot(p);
   for(const gx of GUNS[Math.min(5,p.g||1)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;   // muzzle tip: nose for the centre gun, barrel end for wing guns
-    bul.push({x:p.x+gx*.9,y:p.y-p.dir*(tip-2)*.9,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}if((mode=='online'&&p.i==0)||(co&&p.i==lp())){net.fc++;net.fx=p.x;net.fy=p.y}}
+    const B={x:p.x+gx*.9,y:p.y-p.dir*(tip-2)*.9,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]};
+    // co-op: the partner's jet is DRAWN at its simulated position plus a smoothing offset (co.off), but shots are simulated at the true position.
+    // Give the partner's shots the same visual offset so they leave the jet's drawn nose, then let it fade out slowly. Visual only: hits stay on the true path.
+    if(co&&p.i!=co.me&&(co.off.x||co.off.y)){B.ofx=co.off.x;B.ofy=co.off.y;B.pf=1}
+    bul.push(B)}if((mode=='online'&&p.i==0)||(co&&p.i==lp())){net.fc++;net.fx=p.x;net.fy=p.y}}
 function ai(p){
   const e=P[0];let dodge=0;
   for(const b of bul)if(b.o==0&&Math.abs(b.x-p.x)<34&&b.y<p.y&&p.y-b.y<230)dodge=p.x<b.x?-1:1;
@@ -1947,7 +1951,7 @@ function coGate(){   // true = simulate one more tick now
     const lead=co.n-(co.R+1),lim=Math.min(120,Math.ceil((co.rtt||0)/2/16.7)+28);   // never run far ahead of what the partner has told us
     if(lead>lim){if(!co.stallT)co.stallT=Date.now();if(Date.now()-co.fs>250){co.fs=Date.now();coSend();net.room.sendG({t:'r',n:co.R+1})}return false}
     co.stallT=0}
-  for(const b of bul){if(b.ofx||b.ofy){b.ofx*=.8;b.ofy*=.8;if(Math.abs(b.ofx)+Math.abs(b.ofy)<.5)b.ofx=b.ofy=0}if(b.fda<1)b.fda=Math.min(1,b.fda+.12)}
+  for(const b of bul){if(b.ofx||b.ofy){const dk=b.pf?.96:.8;b.ofx*=dk;b.ofy*=dk;if(Math.abs(b.ofx)+Math.abs(b.ofy)<.5)b.ofx=b.ofy=0}if(b.fda<1)b.fda=Math.min(1,b.fda+.12)}
   for(const e of en)if(e.ofx||e.ofy){e.ofx*=.86;e.ofy*=.86;if(Math.abs(e.ofx)+Math.abs(e.ofy)<.5)e.ofx=e.ofy=0}
   if(co.fade&&co.fade.length){for(const g of co.fade){g.x+=g.vx*DT;g.y+=g.vy*DT;g.l-=DT}co.fade=co.fade.filter(g=>g.l>0)}
   const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
