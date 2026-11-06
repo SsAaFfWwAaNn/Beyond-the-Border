@@ -505,7 +505,7 @@ function togglePause(){setPause((mode=='online'||co)?!pmenu.classList.contains('
 pbtn.onclick=()=>setPause(true);
 $('presume').onclick=()=>setPause(false);
 $('prestart').onclick=()=>{setPause(false);start(mode)};
-$('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on||co)netLeave();co=null;endMenu();if(on)openOnline()};
+$('pquit').onclick=()=>{const on=mode=='online';setPause(false);msg.textContent='Choose your sortie';if(on||co){coBye();netLeave()}co=null;endMenu();if(on)openOnline()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode!='online')setPause(true);if(!document.hidden&&wait&&oroom)try{roomCheck()}catch(e){}});
 addEventListener('blur',()=>{if(mode!='online')setPause(true)});
 // ---------- sharp MiG-29 style silhouette (top-down) ----------
@@ -1585,7 +1585,7 @@ function draw(){
   for(const e of en)if(e.warn>0&&Math.floor(e.warn*8)%2==0){const x=e.d>0?18:W-18;ctx.fillStyle=C.brick;ctx.beginPath();ctx.moveTo(x+e.d*12,e.y);ctx.lineTo(x-e.d*8,e.y-12);ctx.lineTo(x-e.d*8,e.y+12);ctx.fill();txt('!',x-e.d*22,e.y,16,C.cream)}
   if(!P.length)return;
   if(mode=='mission'){
-    if(co){bar(P[lp()],H-22,'You');bar(P[1-lp()],H-40,net.oname||'Partner');if(co.stallT&&Date.now()-co.stallT>500)txt('Waiting for partner…',W/2,H/2-70,22,C.cream);const mp=P[lp()];if(!mp.alive&&mp.rs>0&&state=='play')txt('Back in '+Math.ceil(mp.rs),W/2,H/2,26,C.cream)}else bar(P[0],H-22,'Health');
+    if(co){bar(P[lp()],H-22,'You');bar(P[1-lp()],H-40,(net.oname||'Partner')+(co.solo?' · left':''));if(co.stallT&&!co.solo&&Date.now()-co.stallT>500)txt('Connection slow…',W/2,H/2-70,22,C.cream);if(co.solo&&co.leftT&&Date.now()-co.leftT<6000)txt('Partner disconnected · flying solo',W/2,H/2-70,18,C.cream);const mp=P[lp()];if(!mp.alive&&mp.rs>0&&state=='play')txt('Back in '+Math.ceil(mp.rs),W/2,H/2,26,C.cream)}else bar(P[0],H-22,'Health');
     txt('Score',14,16,11,'rgba(236,217,208,.7)','left',500);txt(String(pts),14,36,24,C.cream,'left');
     txt(Math.floor(mt/60)+':'+String(Math.floor(mt%60)).padStart(2,'0'),W-62,26,22,C.cream,'right');
     txt('Stage '+D.stage,W-62,46,12,'rgba(236,217,208,.7)','right',500);
@@ -1863,7 +1863,7 @@ $('ouserb').onclick=()=>{const raw=clean($('ouser').value),n=raw.toLowerCase();i
   if(!p){ost.textContent='No pilot named “'+raw+'” is online right now. Use the invite link instead.';return}
   if(p.presence.st!='idle'){ost.textContent=clean(p.presence.n)+' is busy or searching for a match.';return}
   challenge(p)};
-addEventListener('pagehide',()=>{gone=1;if(net.on)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
+addEventListener('pagehide',()=>{gone=1;coBye();if(net.on||co)netLeave();try{SBC&&SBC.removeAllChannels()}catch(e){}});
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 setInterval(lobbyTick,2000);
 (async()=>{try{RM=await getRoom()}catch(e){RM=null}if(RM){subLobby();pushLobby();lobbyTick()}})();   // join the lobby on page load
@@ -1901,6 +1901,7 @@ function dc(o,m){if(o===null||typeof o!='object')return o;let c=m.get(o);if(c!==
   c={};m.set(o,c);for(const k in o)c[k]=k==='tr'&&Array.isArray(o[k])?o[k].slice():dc(o[k],m);return c}   // trail points are never edited, so copies can share them
 const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops},new Map);
 function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops}=dc(S,new Map))}
+function restoreRaw(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops}=S)}   // S is thrown away and replaced by a new snapshot at the end of the replay, so it can be used directly
 function copred(t){   // partner's controls for a tick we haven't heard yet: a short, quickly fading continuation of their heading. Standing still stays exactly still, and a stop overshoots by only a few pixels instead of sliding back
   const R=co.R,o=1-co.me;if(R<0)return co.init[o];const a=co.rem[R],w=Math.min(R,3),b=co.rem[R-w]||a,k=Math.min(t-R,10);
   let vx=w?(a[0]-b[0])/w:0,vy=w?(a[1]-b[1])/w:0;const sp=Math.hypot(vx,vy);if(sp<.6){vx=vy=0}else if(sp>5){vx*=5/sp;vy*=5/sp}
@@ -1913,7 +1914,7 @@ function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-12)
 function coSync(){   // fold newly arrived partner controls into history: rewind to the last confirmed state and replay up to now
   const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<3)return;   // replay in small batches: frequent tiny corrections look smooth, rare big ones look like jumps
   const ro=1-co.me,bx=P[ro].x,by=P[ro].y;   // where the partner was drawn before this correction
-  restore(co.S);co.mute=1;co.rs=1;
+  restoreRaw(co.S);co.mute=1;co.rs=1;
   for(let t=co.F;t<=n;t++){
     if(t%120==0&&t<=nf&&co.h[t]===undefined){const h=chash();co.h[t]=h;co.hq.push([t,h]);if(co.rh[t]!==undefined&&co.rh[t]!==h){co.rs=0;co.mute=0;return coDesync()}}
     if(t==nf)co.S=snap();
@@ -1928,14 +1929,15 @@ function coGate(){   // true = simulate one more tick now
   if(!co.solo){
     coSync();if(!co)return false;
     for(const o of P)o.px=o.x,o.py=o.y;for(const o of en)o.px=o.x,o.py=o.y;for(const o of bul)o.px=o.x,o.py=o.y;
-    const lead=co.n-(co.R+1),lim=Math.min(90,Math.ceil((co.rtt||0)/2/16.7)+16);   // never run far ahead of what the partner has told us
+    const lead=co.n-(co.R+1),lim=Math.min(120,Math.ceil((co.rtt||0)/2/16.7)+28);   // never run far ahead of what the partner has told us
     if(lead>lim){if(!co.stallT)co.stallT=Date.now();if(Date.now()-co.fs>250){co.fs=Date.now();coSend();net.room.sendG({t:'r',n:co.R+1})}return false}
     co.stallT=0}
   const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
   const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
-  co.cur=n;co.n=n+1;if(n%4==0&&!co.solo)coSend();
+  co.cur=n;co.n=n+1;if(n%3==0&&!co.solo)coSend();
   const pr=P[1-co.me],pv=co.pv,of=co.off;   // partner is drawn at their simulated position (where their shots come from) plus a fading correction offset
-  of.x*=.72;of.y*=.72;if(!pr.alive||Math.hypot(of.x,of.y)<1){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
+  const R=co.R,rm=co.rem,still=R>=3&&rm[R]&&rm[R-3]&&Math.abs(rm[R][0]-rm[R-3][0])<.3&&Math.abs(rm[R][1]-rm[R-3][1])<.3,dk=still?.55:.85;
+  of.x*=dk;of.y*=dk;if(!pr.alive||Math.hypot(of.x,of.y)<(still?1.5:.35)){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
   return true}
 function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
@@ -1944,15 +1946,18 @@ function coRecv(m){
   if(m.t=='i'&&m.v!==CO_VER){netLeave();co=null;msg.textContent='Your partner is on a different version of the game. Refresh both pages and try again.';setPause(false);endMenu();return}
   if(m.t=='i'){m.a.forEach((v,i)=>{if(co.rem[m.n0+i]===undefined)co.rem[m.n0+i]=v});while(co.rem[co.R+1]!==undefined)co.R++;
     for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
+  else if(m.t=='x')return coLost();
   else if(m.t=='r')co.sent=Math.min(co.sent,m.n-1);
   else if(m.t=='p')net.room.sendG({t:'q',ts:m.ts});
   else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt}}
 function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended. Refresh both pages and try again.';setPause(false);endMenu()}
-function coLost(){if(!co||co.solo)return;netLeave();co.solo=1;const q=P[1-co.me];if(q){q.alive=false;q.rs=0}pop(W/2,H*.3,'PARTNER LEFT');if(!P.some(o=>o.alive)&&state=='play'){state='between';timer=2.4}}
+function coBye(){if(co&&!co.solo&&net.room)try{net.room.sendG({t:'x'})}catch(e){}}   // tell the partner at once when we leave on purpose, so they never sit waiting for us
+function coLost(notify){if(!co||co.solo)return;co.solo=1;co.stallT=0;co.leftT=Date.now();if(notify&&net.room)try{net.room.sendG({t:'x'})}catch(e){}netLeave();   // partner gone: the mission carries on for the one still flying
+  const q=P[1-co.me];if(q){if(q.alive)burst(q.x,q.y,C.cream,18);q.alive=false;q.rs=0}pop(W/2,H*.3,'PARTNER DISCONNECTED');if(!P.some(o=>o.alive)&&state=='play'){state='between';timer=2.4}}
 setInterval(()=>{if(!co||!net.room||co.solo)return;const R=net.room;
   if(Date.now()-(co.pt||0)>1000){co.pt=Date.now();R.sendG({t:'p',ts:co.pt})}   // one small ping a second doubles as the heartbeat
-  const r=R.peers().find(p=>p.peer===net.opp&&!p.isMe);
-  if((r&&r.presence.bye)||Date.now()-co.last>20000)coLost()},250);
+  const r=R.peers().find(p=>p.peer===net.opp&&!p.isMe),now=Date.now();if(r)co.seen=now;
+  if((r&&r.presence.bye)||now-co.last>5000||(!r&&co.seen&&now-co.seen>2500&&now-co.last>2500)||(co.stallT&&now-co.stallT>6000))coLost(1)},250);   // said goodbye, went silent, dropped out of the room, or froze (hidden tab): all count as disconnected
 // sounds replayed during a rewind would double up, so they are muted while it happens
 for(const k of Object.keys(SFX)){const f=SFX[k];if(typeof f=='function')SFX[k]=function(){if(co&&co.mute)return;return f.apply(this,arguments)}}
 
