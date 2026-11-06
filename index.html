@@ -1901,17 +1901,17 @@ function dc(o,m){if(o===null||typeof o!='object')return o;let c=m.get(o);if(c!==
   c={};m.set(o,c);for(const k in o)c[k]=k==='tr'&&Array.isArray(o[k])?o[k].slice():dc(o[k],m);return c}   // trail points are never edited, so copies can share them
 const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops},new Map);
 function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops}=dc(S,new Map))}
-function copred(t){   // partner's controls for a tick we haven't heard yet: keep their recent heading, fading out so a sudden stop costs little
-  const R=co.R,o=1-co.me;if(R<0)return co.init[o];const a=co.rem[R],w=Math.min(R,4),b=co.rem[R-w]||a,k=Math.min(t-R,40);
-  let vx=w?(a[0]-b[0])/w:0,vy=w?(a[1]-b[1])/w:0;const sp=Math.hypot(vx,vy);if(sp>6){vx*=6/sp;vy*=6/sp}
-  let g=0,d=1;for(let i=0;i<k;i++){d*=.92;g+=d}
+function copred(t){   // partner's controls for a tick we haven't heard yet: a short, quickly fading continuation of their heading. Standing still stays exactly still, and a stop overshoots by only a few pixels instead of sliding back
+  const R=co.R,o=1-co.me;if(R<0)return co.init[o];const a=co.rem[R],w=Math.min(R,3),b=co.rem[R-w]||a,k=Math.min(t-R,10);
+  let vx=w?(a[0]-b[0])/w:0,vy=w?(a[1]-b[1])/w:0;const sp=Math.hypot(vx,vy);if(sp<.6){vx=vy=0}else if(sp>5){vx*=5/sp;vy*=5/sp}
+  let g=0,d=1;for(let i=0;i<k;i++){d*=.78;g+=d}
   return[Math.max(28,Math.min(W-28,a[0]+vx*g)),Math.max(30,Math.min(H-30,a[1]+vy*g)),a[2]]}
 const cget=(i,t)=>i==co.me?(co.loc[t]||co.init[i]):(co.rem[t]||copred(t));   // real controls if known, else the prediction
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
 function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-12),a=co.loc.slice(from,co.n);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
   net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.n-1;co.hq=[]}
 function coSync(){   // fold newly arrived partner controls into history: rewind to the last confirmed state and replay up to now
-  const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<6)return;   // replay in batches of a few ticks to keep the phone cool
+  const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<3)return;   // replay in small batches: frequent tiny corrections look smooth, rare big ones look like jumps
   const ro=1-co.me,bx=P[ro].x,by=P[ro].y;   // where the partner was drawn before this correction
   restore(co.S);co.mute=1;co.rs=1;
   for(let t=co.F;t<=n;t++){
@@ -1935,7 +1935,7 @@ function coGate(){   // true = simulate one more tick now
   const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
   co.cur=n;co.n=n+1;if(n%4==0&&!co.solo)coSend();
   const pr=P[1-co.me],pv=co.pv,of=co.off;   // partner is drawn at their simulated position (where their shots come from) plus a fading correction offset
-  of.x*=.88;of.y*=.88;if(!pr.alive){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
+  of.x*=.72;of.y*=.72;if(!pr.alive||Math.hypot(of.x,of.y)<1){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
   return true}
 function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
