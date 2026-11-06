@@ -539,13 +539,13 @@ function jet(x,y,dir,pal,g){
 }
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.rec=-1;co.sent=-1;co.loc=[];co.rem={};co.h={};co.rh={};co.hq=[];co.fs=0;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y,dir:-1,g:1,cd:0};co.vb=[];tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
+function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
   bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
 // gun layouts by gun count (x offsets in jet-model units). GE = y of the wing's leading edge at that x, so every barrel sits right on the airframe
 const GUNS=[[0],[-7,7],[-13,0,13],[-20,-7,7,20],[-27,-13,0,13,27]],GE={7:-5,13:0,20:5,27:10};
-function fire(p){if(p.cd>0)return;p.cd=.22;if(!(co&&p.i==co.me))SFX.shoot(p);
+function fire(p){if(p.cd>0)return;p.cd=.22;SFX.shoot(p);
   for(const gx of GUNS[Math.min(5,p.g||1)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;   // muzzle tip: nose for the centre gun, barrel end for wing guns
     bul.push({x:p.x+gx*.9,y:p.y-p.dir*(tip-2)*.9,vx:0,vy:p.dir*520,o:p.i,d:9,tr:[]})}if((mode=='online'&&p.i==0)||(co&&p.i==lp())){net.fc++;net.fx=p.x;net.fy=p.y}}
 function ai(p){
@@ -1450,7 +1450,7 @@ function mission(){
 function step(){
   for(const o of P)o.px=o.x,o.py=o.y;for(const o of en)o.px=o.x,o.py=o.y;for(const o of bul)o.px=o.x,o.py=o.y;
   if(paused)return;
-  if(co&&state!='menu'&&!coGate())return;
+  if(co&&state!='menu'&&!coGate())return false;
   tt+=DT;scroll+=(state=='menu'?50:90)*DT;
   for(const q of parts){q.x+=q.vx*DT;q.y+=q.vy*DT;q.l-=DT}
   parts=parts.filter(q=>q.l>0);
@@ -1481,7 +1481,7 @@ function step(){
   if(state=='between'){
     timer-=DT;
     if(timer<=0){
-      if(mode=='mission'){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}if(co){netLeave();co=null}msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
+      if(mode=='mission'){if(co){if(co.solo||co.cur<=co.R)co.endReq=co.cur;return}if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}msg.textContent='Mission failed · Score '+pts+' · Best '+best;endMenu()}
       else if(mode=='online'){if((score[0]>=winAt()||score[1]>=winAt())&&score[0]!=score[1])SFX.stinger(score[0]>score[1]?'victory':'defeat'),netEnd((score[0]>score[1]?'You win the match!':net.oname+' wins the match.')+' ('+score[0]+'–'+score[1]+')',score[0]>score[1]?'Victory':'Defeat');else{net.rn++;reset()}}
       else if(score[0]>=winAt()||score[1]>=winAt()){SFX.stinger(mode=='2p'||score[0]>score[1]?'victory':'defeat');
         msg.textContent=(score[0]>score[1]?(mode=='cpu'?'You win the match!':'P1 wins the match!'):(mode=='cpu'?'The bot wins the match.':'P2 wins the match!'))+' ('+score[0]+'–'+score[1]+')';endMenu();
@@ -1563,9 +1563,9 @@ function draw(){
   for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
   for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
   drawPickups();
-  for(const p of P)if(p.alive){const q=co&&p.i==co.me?co.gh:p;jet(ix(q,'x'),ix(q,'y'),p.dir,p.pal,p.g||1)}
+  for(const p of P)if(p.alive)jet(ix(p,'x'),ix(p,'y'),p.dir,p.pal,p.g||1);
   ctx.lineCap='round';
-  const BL=co?bul.filter(b=>b.o!=co.me).concat(co.vb||[]):bul;
+  const BL=bul;
   for(const b of BL){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
   for(const b of BL)trail(b);
   for(const b of BL){
@@ -1672,7 +1672,7 @@ function getRoom(){   // single flight: page-load, the Online button and the rep
   if(roomP)return roomP;
   roomP=(async()=>{
     if(!window.supabase||!SUPABASE_URL)return null;
-    if(!SBC)SBC=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:30}}});
+    if(!SBC)SBC=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:60}}});
     const lob=await mkRoom('lobby',false);
     return{peers:lob.peers,onPeers:lob.onPeers,presence:lob.presence,connected:lob.connected,close:lob.leave,join:n=>mkRoom(n,true)};
   })();
@@ -1882,52 +1882,67 @@ setInterval(async()=>{
   if(c.length==5)setTimeout(async()=>{await openOnline();if(RM&&lst=='idle'){$('ojc').value=c;$('ojoin').onclick()}},400)})();
 $('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remove('show');menu.classList.remove('hide')};
 
-// ---------- Mission · Duo: lockstep co-op. Both screens run the identical mission; only the two pilots' controls travel over the wire ----------
-const lp=()=>co?co.me:0;
+// ---------- Mission · Duo: rollback co-op (the netcode fighting games use) ----------
+// Both screens run the identical mission in real time. Your own controls act instantly; your partner is predicted from their last known
+// controls. When their real controls arrive, the game rewinds to the last fully-confirmed moment and replays the few frames since, so both
+// screens always converge to exactly the same mission: no input delay, no waiting.
+const lp=()=>co?co.me:0,CO_VER='duo-6';
 function T(e){let b=P[0],bd=1e9;for(const q of P)if(q.alive){const dx=q.x-e.x,dy=q.y-e.y,d=dx*dx+dy*dy;if(d<bd){bd=d;b=q}}return b}   // each enemy hunts the nearest living pilot
-const CO_VER='duo-5';
 function cseed(a,b){let h=2166136261;for(const c of[a,b].sort().join(''))h=Math.imul(h^c.charCodeAt(0),16777619);return h|0}
-const cget=(i,n)=>i==co.me?(co.loc[n]||co.init[i]):(co.rem[n]||co.init[i]),chave=(i,n)=>i==co.me||co.rem[n]!==undefined;
+function dc(o,m){if(o===null||typeof o!='object')return o;let c=m.get(o);if(c!==undefined)return c;
+  if(Array.isArray(o)){c=new Array(o.length);m.set(o,c);for(let i=0;i<o.length;i++)c[i]=dc(o[i],m);return c}
+  if(ArrayBuffer.isView(o)){c=o.slice();m.set(o,c);return c}
+  if(Object.getPrototypeOf(o)!==Object.prototype)return o;   // canvases, paths and other non-plain objects are shared, not copied
+  c={};m.set(o,c);for(const k in o)c[k]=dc(o[k],m);return c}
+const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,parts,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops},new Map);
+function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,parts,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops}=dc(S,new Map))}
+const cget=(i,t)=>i==co.me?(co.loc[t]||co.init[i]):(co.rem[t]||(co.R>=0?co.rem[co.R]:0)||co.init[i]);   // real controls if known, else "same as their last known"
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
-function coSend(){const from=co.rem.min===undefined?0:Math.max(0,co.sent-8),a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
-     // until we hear the partner, keep resending from tick 0
-  net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
-function coGate(){   // true = run this tick. A tick runs only once both pilots' controls for it are known, so both screens stay identical
-  const n=co.n,me=P[co.me],gh=co.gh;
-  if(co.rt!==n){co.rt=n;   // my side of this tick: runs once, even if the tick then has to wait for the partner
-  if(!me.alive){gh.x=me.x;gh.y=me.y}
-  gh.px=gh.x;gh.py=gh.y;gh.g=me.g||1;gh.cd-=DT;
-  const f=control(gh)?1:0,v=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];
-  if(f&&me.alive&&gh.cd<=0){gh.cd=.22;SFX.shoot(gh);for(const gx of GUNS[Math.min(5,gh.g)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;co.vb.push({x:gh.x+gx*.9,y:gh.y+(tip-2)*.9,vx:0,vy:-520,o:co.me,d:9,tr:[]})}}   // instant local shots (visual): the shared sim applies the real damage
-  for(const b of co.vb){b.px=b.x;b.py=b.y;b.tr.push({x:b.x,y:b.y});if(b.tr.length>26)b.tr.shift();b.y+=b.vy*DT;
-    for(const e of en)if(!e.dead&&!(e.warn>0)&&(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r)){b.dead=1;break}
-    if(b.y<-20)b.dead=1}
-  co.vb=co.vb.filter(b=>!b.dead);
-  while(co.rec<n+co.D)co.loc[++co.rec]=v;   // my controls take effect D ticks from now, covering the network delay
-  if(n%3==0&&!co.solo)coSend()}
-  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>120){co.fs=Date.now();coSend();net.room.sendG({t:'r',n})}return false}   // partner's controls for this tick not here yet: wait
-  co.cur=n;
-  if(n%120==0){const h=chash();co.h[n]=h;co.hq.push([n,h]);if(co.rh[n]!==undefined&&co.rh[n]!==h){coDesync();return false}}
-  co.n++;return true}
+function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-8),a=co.loc.slice(from,co.n);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
+  net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.n-1;co.hq=[]}
+function coSync(){   // fold newly arrived partner controls into history: rewind to the last confirmed state and replay up to now
+  const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<3)return;   // replay in batches of a few ticks to keep the phone cool
+  restore(co.S);co.mute=1;co.rs=1;
+  for(let t=co.F;t<=n;t++){
+    if(t%120==0&&t<=nf&&co.h[t]===undefined){const h=chash();co.h[t]=h;co.hq.push([t,h]);if(co.rh[t]!==undefined&&co.rh[t]!==h){co.rs=0;co.mute=0;return coDesync()}}
+    if(t==nf)co.S=snap();
+    if(t==n)break;
+    co.cur=t;step();if(!co)return}
+  co.F=nf;co.rs=0;co.mute=0}
+function coGate(){   // true = simulate one more tick now
+  if(co.rs)return true;
+  if(co.endReq!==undefined){coFinish();return false}
+  if(!co.S){co.S=snap();co.F=0}
+  if(!co.solo){
+    coSync();if(!co)return false;
+    for(const o of P)o.px=o.x,o.py=o.y;for(const o of en)o.px=o.x,o.py=o.y;for(const o of bul)o.px=o.x,o.py=o.y;
+    const lead=co.n-(co.R+1),lim=Math.min(90,Math.ceil((co.rtt||0)/2/16.7)+12);   // never run far ahead of what the partner has told us
+    if(lead>lim){if(Date.now()-co.fs>120){co.fs=Date.now();coSend();net.room.sendG({t:'r',n:co.R+1})}return false}}
+  const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
+  const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
+  co.cur=n;co.n=n+1;if(n%2==0&&!co.solo)coSend();return true}
+function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
 function coRecv(m){
   if(!co||!m||!co.rem)return;co.last=Date.now();
   if(m.t=='i'&&m.v!==CO_VER){netLeave();co=null;msg.textContent='Your partner is on a different version of the game. Refresh both pages and try again.';setPause(false);endMenu();return}
-  if(m.t=='i'){const r=co.rem;if(r.min===undefined)r.min=m.n0;m.a.forEach((v,i)=>{r[m.n0+i]=v});
+  if(m.t=='i'){m.a.forEach((v,i)=>{if(co.rem[m.n0+i]===undefined)co.rem[m.n0+i]=v});while(co.rem[co.R+1]!==undefined)co.R++;
     for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
   else if(m.t=='r')co.sent=Math.min(co.sent,m.n-1);
   else if(m.t=='p')net.room.sendG({t:'q',ts:m.ts});
-  else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt;const w=Math.max(2,Math.min(30,Math.ceil((co.rtt/2+22)/16.7)));co.D=w>co.D?w:Math.max(w,co.D-1)}}   // control delay adapts to the connection
+  else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt}}
 function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended. Refresh both pages and try again.';setPause(false);endMenu()}
 function coLost(){if(!co||co.solo)return;netLeave();co.solo=1;const q=P[1-co.me];if(q){q.alive=false;q.rs=0}pop(W/2,H*.3,'PARTNER LEFT');if(!P.some(o=>o.alive)&&state=='play'){state='between';timer=2.4}}
 setInterval(()=>{if(!co||!net.room||co.solo)return;const R=net.room;
-  if(Date.now()-(co.pt||0)>1000){co.pt=Date.now();R.sendG({t:'p',ts:co.pt});R.presence({n:myName(),x:Math.round(P[co.me].x),t:++net.tick})}   // ping + heartbeat
+  if(Date.now()-(co.pt||0)>500){co.pt=Date.now();R.sendG({t:'p',ts:co.pt});R.presence({n:myName(),x:Math.round(P[co.me].x),t:++net.tick})}   // ping + heartbeat
   const r=R.peers().find(p=>p.peer===net.opp&&!p.isMe);
   if((r&&r.presence.bye)||Date.now()-co.last>9000)coLost()},250);
+// sounds replayed during a rewind would double up, so they are muted while it happens
+for(const k of Object.keys(SFX)){const f=SFX[k];if(typeof f=='function')SFX[k]=function(){if(co&&co.mute)return;return f.apply(this,arguments)}}
 
 let last=performance.now(),acc=0;
 let alpha=0;
 const ix=(o,k)=>o['p'+k]===undefined?o[k]:o['p'+k]+(o[k]-o['p'+k])*alpha;   // render interpolation: smooth on 90/120 Hz phones
-(function loop(n){acc+=Math.min(.1,(n-last)/1000);last=n;while(acc>=DT){step();acc-=DT}alpha=acc/DT;SFX.tick();draw();requestAnimationFrame(loop)})(last);
+(function loop(n){acc+=Math.min(.1,(n-last)/1000);last=n;let k=0;while(acc>=DT){if(step()===false)break;acc-=DT;if(++k>10)break}acc=Math.min(acc,.25);alpha=Math.min(1,acc/DT);SFX.tick();draw();requestAnimationFrame(loop)})(last);
 </script>
 </body></html>
