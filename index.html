@@ -830,6 +830,7 @@ function trainSeg(x,y,e){   // engine + gun carts running up the track beside yo
   ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(-12,-26,24,52);
   ctx.restore();
 }
+function dE(e){if(e.ofx||e.ofy){ctx.save();ctx.translate(e.ofx,e.ofy);drawEnemy(e);ctx.restore()}else drawEnemy(e)}
 function drawEnemy(e){
   const x=ix(e,'x'),y=ix(e,'y'),t=e.ty;
   if(t=='heli')heliJet(x,y,e);
@@ -1564,20 +1565,22 @@ function draw(){
     ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.5;ctx.setLineDash([12,10]);ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(W,my);ctx.stroke();ctx.setLineDash([]);
   }
   drawWrecks();drawFires();
-  for(const e of en)if(e.gnd)drawEnemy(e);
-  for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
-  for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
+  for(const e of en)if(e.gnd)dE(e);
+  for(const e of en)if(!e.gnd&&!(e.warn>0))dE(e);
+  for(const e of en)if(e.hp<e.mhp){const by=e.y+(e.ofy||0)-(e.hh?e.hh+8:e.gnd?30:44),bx=e.x+(e.ofx||0)-18;ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(bx,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(bx,by,36*e.hp/e.mhp,4)}
   drawPickups();
-  for(const p of P)if(p.alive){const q=co&&p.i!=co.me?co.pv:p;jet(ix(q,'x'),ix(q,'y'),p.dir,p.pal,p.g||1)}
+  for(const p of P)if(p.alive){let x=ix(p,'x'),y=ix(p,'y');if(co&&p.i!=co.me){const o=co.off,q=co.op||o;x+=q.x+(o.x-q.x)*alpha;y+=q.y+(o.y-q.y)*alpha}jet(x,y,p.dir,p.pal,p.g||1)}
   ctx.lineCap='round';
   const BL=bul;
   for(const b of BL){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
-  for(const b of BL)trail(b);
-  for(const b of BL){
+  for(const b of BL){if(b.ofx||b.ofy||b.fda<1){ctx.save();ctx.translate(b.ofx||0,b.ofy||0);if(b.fda<1)ctx.globalAlpha=b.fda;trail(b);ctx.restore()}else trail(b)}
+  for(const b of BL){const sv=b.ofx||b.ofy||b.fda<1;if(sv){ctx.save();ctx.translate(b.ofx||0,b.ofy||0);if(b.fda<1)ctx.globalAlpha=b.fda}
     if(b.o==2){ctx.fillStyle=C.ember;ctx.beginPath();ctx.arc(b.x,b.y,3.6,0,6.28);ctx.fill();ctx.fillStyle='#fbe3c9';ctx.beginPath();ctx.arc(b.x,b.y,1.6,0,6.28);ctx.fill()}
     else{ctx.fillStyle=b.o?'#ffc2b0':'#fff3ea';ctx.fillRect(b.x-1.6,b.y-6,3.2,12)}
-  }
+    if(sv)ctx.restore()}
   for(const b of BL){b.x=b.ox;b.y=b.oy}
+  if(co&&co.fade)for(const g of co.fade){ctx.globalAlpha=Math.max(0,g.l/.12);if(g.o==2){ctx.fillStyle=C.ember;ctx.beginPath();ctx.arc(g.x,g.y,3.6,0,6.28);ctx.fill()}else{ctx.fillStyle=g.o?'#ffc2b0':'#fff3ea';ctx.fillRect(g.x-1.6,g.y-6,3.2,12)}}
+  ctx.globalAlpha=1;
   for(const q of parts){ctx.globalAlpha=Math.max(0,q.l*1.6);ctx.fillStyle=q.c;ctx.fillRect(q.x,q.y,3,3)}
   ctx.globalAlpha=1;
   for(const q of pops){ctx.globalAlpha=Math.min(1,q.t*2);txt(q.s,q.x,q.y,15,C.cream)}
@@ -1910,10 +1913,10 @@ function copred(t){   // partner's controls for a tick we haven't heard yet: a s
 const cget=(i,t)=>i==co.me?(co.loc[t]||co.init[i]):(co.rem[t]||copred(t));   // real controls if known, else the prediction
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
 function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-12),a=co.loc.slice(from,co.n);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
-  net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.n-1;co.hq=[]}
+  net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq,dd:co.dm});co.sent=co.n-1;co.hq=[]}
 function coSync(){   // fold newly arrived partner controls into history: rewind to the last confirmed state and replay up to now
-  const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<3)return;   // replay in small batches: frequent tiny corrections look smooth, rare big ones look like jumps
-  const ro=1-co.me,bx=P[ro].x,by=P[ro].y;   // where the partner was drawn before this correction
+  const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<(co.sb||3))return;const t0=performance.now();   // replay in small batches: frequent tiny corrections look smooth, rare big ones look like jumps
+  const ro=1-co.me,bx=P[ro].x,by=P[ro].y,oB=bul,oE=en;   // where the partner (and every bullet and enemy) was drawn before this correction
   restoreRaw(co.S);co.mute=1;co.rs=1;
   for(let t=co.F;t<=n;t++){
     if(t%120==0&&t<=nf&&co.h[t]===undefined){const h=chash();co.h[t]=h;co.hq.push([t,h]);if(co.rh[t]!==undefined&&co.rh[t]!==h){co.rs=0;co.mute=0;return coDesync()}}
@@ -1921,7 +1924,19 @@ function coSync(){   // fold newly arrived partner controls into history: rewind
     if(t==n)break;
     co.cur=t;step();if(!co)return}
   co.F=nf;co.rs=0;co.mute=0;
-  const a=P[ro];if(a.alive){const o=co.off;o.x+=bx-a.x;o.y+=by-a.y;if(Math.hypot(o.x,o.y)>150)o.x=o.y=0}}
+  const a=P[ro];if(a.alive){const o=co.off;o.x+=bx-a.x;o.y+=by-a.y;if(Math.hypot(o.x,o.y)>150)o.x=o.y=0}coSmooth(oB,oE);
+  co.sc=(co.sc||0)*.85+(performance.now()-t0)*.15;co.sb=Math.max(3,Math.min(12,Math.ceil(co.sc/1.5)))}   // slow device: correct in bigger, rarer batches
+function coSmooth(oB,oE){   // a rollback can move bullets and enemies by a few pixels: they keep being drawn where they were and glide to the corrected spot, so nothing jumps
+  const fade=co.fade||(co.fade=[]);
+  const match=(oldA,newA,same,maxd,miss)=>{const used=new Uint8Array(oldA.length);if(oldA.length*newA.length>90000)return used.fill(1);
+    for(const nb of newA){let bi=-1,bd=maxd*maxd;
+      for(let i=0;i<oldA.length;i++){if(used[i])continue;const o=oldA[i];if(!same(o,nb))continue;const dx=o.x+(o.ofx||0)-nb.x,dy=o.y+(o.ofy||0)-nb.y,d=dx*dx+dy*dy;if(d<bd){bd=d;bi=i}}
+      if(bi<0){if(miss)miss(nb);continue}
+      used[bi]=1;const o=oldA[bi];nb.ofx=o.x+(o.ofx||0)-nb.x;nb.ofy=o.y+(o.ofy||0)-nb.y;if(nb.ofx*nb.ofx+nb.ofy*nb.ofy<.25)nb.ofx=nb.ofy=0}
+    return used};
+  const ub=match(oB,bul,(o,n)=>o.o===n.o,90,n=>{n.fda=.3});   // a bullet the correction created fades in; one it removed fades out
+  for(let i=0;i<oB.length;i++){const g=oB[i];if(ub[i]||g.dead||fade.length>40)continue;fade.push({x:g.x+(g.ofx||0),y:g.y+(g.ofy||0),vx:g.vx,vy:g.vy,o:g.o,l:.12})}
+  match(oE,en,(o,n)=>o.ty===n.ty,140)}
 function coGate(){   // true = simulate one more tick now
   if(co.rs)return true;
   if(co.endReq!==undefined){coFinish();return false}
@@ -1932,19 +1947,24 @@ function coGate(){   // true = simulate one more tick now
     const lead=co.n-(co.R+1),lim=Math.min(120,Math.ceil((co.rtt||0)/2/16.7)+28);   // never run far ahead of what the partner has told us
     if(lead>lim){if(!co.stallT)co.stallT=Date.now();if(Date.now()-co.fs>250){co.fs=Date.now();coSend();net.room.sendG({t:'r',n:co.R+1})}return false}
     co.stallT=0}
+  for(const b of bul){if(b.ofx||b.ofy){b.ofx*=.8;b.ofy*=.8;if(Math.abs(b.ofx)+Math.abs(b.ofy)<.5)b.ofx=b.ofy=0}if(b.fda<1)b.fda=Math.min(1,b.fda+.12)}
+  for(const e of en)if(e.ofx||e.ofy){e.ofx*=.86;e.ofy*=.86;if(Math.abs(e.ofx)+Math.abs(e.ofy)<.5)e.ofx=e.ofy=0}
+  if(co.fade&&co.fade.length){for(const g of co.fade){g.x+=g.vx*DT;g.y+=g.vy*DT;g.l-=DT}co.fade=co.fade.filter(g=>g.l>0)}
   const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
   const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
   co.cur=n;co.n=n+1;if(n%3==0&&!co.solo)coSend();
-  const pr=P[1-co.me],pv=co.pv,of=co.off;   // partner is drawn at their simulated position (where their shots come from) plus a fading correction offset
+  if(co.solo)co.rate=1;else if(co.dm!==undefined&&co.pdm!==undefined){const dl=(co.dm-co.pdm)/2,cm=Math.abs(dl)>12?.1:.06;co.rate=1-Math.max(-cm,Math.min(cm,dl*.006))}   // clock sync: whoever is ahead runs a hair slower, so neither screen ever hits the wait wall
+  const pr=P[1-co.me],of=co.off,op=co.op||(co.op={x:0,y:0});   // the partner is drawn at their simulated position (where their shots come from) plus a fading correction offset
   const R=co.R,rm=co.rem,still=R>=3&&rm[R]&&rm[R-3]&&Math.abs(rm[R][0]-rm[R-3][0])<.3&&Math.abs(rm[R][1]-rm[R-3][1])<.3,dk=still?.55:.85;
-  of.x*=dk;of.y*=dk;if(!pr.alive||Math.hypot(of.x,of.y)<(still?1.5:.35)){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
+  op.x=of.x;op.y=of.y;of.x*=dk;of.y*=dk;if(!pr.alive||Math.hypot(of.x,of.y)<(still?1.5:.35)){of.x=of.y=0}
   return true}
 function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
 function coRecv(m){
   if(!co||!m||!co.rem)return;co.last=Date.now();
   if(m.t=='i'&&m.v!==CO_VER){netLeave();co=null;msg.textContent='Your partner is on a different version of the game. Refresh both pages and try again.';setPause(false);endMenu();return}
-  if(m.t=='i'){m.a.forEach((v,i)=>{if(co.rem[m.n0+i]===undefined)co.rem[m.n0+i]=v});while(co.rem[co.R+1]!==undefined)co.R++;
+  if(m.t=='i'){const w=co.dw||(co.dw=[]);w.push(co.n-(m.n0+m.a.length));if(w.length>10)w.shift();co.dm=Math.min(...w);if(typeof m.dd=='number')co.pdm=m.dd;   // how many ticks my screen is ahead of theirs, as each of us sees it (latency cancels out)
+    m.a.forEach((v,i)=>{if(co.rem[m.n0+i]===undefined)co.rem[m.n0+i]=v});while(co.rem[co.R+1]!==undefined)co.R++;
     for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
   else if(m.t=='x')return coLost();
   else if(m.t=='r')co.sent=Math.min(co.sent,m.n-1);
@@ -1961,10 +1981,10 @@ setInterval(()=>{if(!co||!net.room||co.solo)return;const R=net.room;
 // sounds replayed during a rewind would double up, so they are muted while it happens
 for(const k of Object.keys(SFX)){const f=SFX[k];if(typeof f=='function')SFX[k]=function(){if(co&&co.mute)return;return f.apply(this,arguments)}}
 
-let last=performance.now(),acc=0;
+let last=performance.now(),acc=0,fAvg=16.7,dAvg=0,dsk=false;
 let alpha=0;
 const ix=(o,k)=>o['p'+k]===undefined?o[k]:o['p'+k]+(o[k]-o['p'+k])*alpha;   // render interpolation: smooth on 90/120 Hz phones
-(function loop(n){requestAnimationFrame(loop);try{acc+=Math.min(.1,(n-last)/1000);last=n;let k=0;if(co)useDet(1);while(acc>=DT){if(step()===false)break;acc-=DT;if(++k>10)break}useDet(0);acc=Math.min(acc,.25);alpha=Math.min(1,acc/DT);SFX.tick();draw()}
+(function loop(n){requestAnimationFrame(loop);try{const fd=n-last;acc+=Math.min(.1,fd/1000)*(co&&co.rate||1);last=n;fAvg+=(Math.min(50,fd)-fAvg)*.05;let k=0;if(co)useDet(1);while(acc>=DT){if(step()===false){if(co)acc=Math.min(acc,DT);break}acc-=DT;if(++k>10)break}useDet(0);acc=Math.min(acc,.25);alpha=Math.min(1,acc/DT);SFX.tick();if(!(co&&fAvg<12&&dAvg>5.5&&(dsk=!dsk))){const t0=performance.now();draw();dAvg+=(performance.now()-t0-dAvg)*.1}}   // duo on a 120 Hz screen: if drawing is costly, draw every other frame and keep the phone cool
   catch(e){console.error(e);useDet(0);acc=0;if(co){netLeave();co=null;msg.textContent='Something went wrong · mission ended';setPause(false);endMenu()}}})(last);
 </script>
 </body></html>
