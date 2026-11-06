@@ -161,6 +161,19 @@ kbd{display:inline-block;min-width:26px;padding:4px 7px;margin:0 0 0 4px;border-
 <div id="ibar" aria-live="polite"></div>
 </div>
 <script>
+// Deterministic math: browsers round sin/cos/atan2/exp/hypot slightly differently, which would slowly pull two co-op games apart.
+// These versions use only + - * / and sqrt (identical on every device), so both players' missions stay exactly the same.
+(()=>{const sq=Math.sqrt,rd=Math.round,PI=Math.PI,TP=PI*2,HP=PI/2,LN2=0.6931471805599453;
+  const sinR=x=>{const x2=x*x;let t=x,s=x;for(let n=1;n<=11;n++){t*=-x2/((2*n)*(2*n+1));s+=t}return s};
+  Math.sin=x=>{if(!isFinite(x))return NaN;let r=x-rd(x/TP)*TP;if(r>HP)r=PI-r;else if(r<-HP)r=-PI-r;return sinR(r)};
+  Math.cos=x=>Math.sin(x+HP);
+  const atP=t=>{t=t/(1+sq(1+t*t));t=t/(1+sq(1+t*t));const t2=t*t;let m=t,s=t;for(let n=1;n<=10;n++){m*=-t2;s+=m/(2*n+1)}return s*4};
+  Math.atan2=(y,x)=>{if(x!==x||y!==y)return NaN;if(x===0&&y===0)return(x<0||Object.is(x,-0))?(Object.is(y,-0)?-PI:PI):y;
+    const ax=x<0?-x:x,ay=y<0?-y:y;let a=ay<=ax?atP(ay/ax):HP-atP(ax/ay);if(x<0)a=PI-a;return y<0?-a:a};
+  Math.exp=x=>{if(x!==x)return NaN;if(x>700)return Infinity;if(x<-700)return 0;const k=rd(x/LN2),r=x-k*LN2;let t=1,s=1;for(let n=1;n<=18;n++){t*=r/n;s+=t}let m=1;const a=k<0?-k:k;for(let i=0;i<a;i++)m*=2;return k<0?s/m:s*m};
+  Math.hypot=function(){let s=0;for(let i=0;i<arguments.length;i++)s+=arguments[i]*arguments[i];return sq(s)};
+})();
+
 const cv=document.getElementById('c'),W=480,H=720,DT=1/60;let ctx=cv.getContext('2d');
 const menu=document.getElementById('menu'),msg=document.getElementById('msg');
 const K={},pc=[mkP(),mkP()],ptr=pc[0],FONT="'Hind Siliguri',system-ui,sans-serif";
@@ -1870,13 +1883,14 @@ $('oback').onclick=()=>{cancelWait('');lst='idle';pushLobby();onl.classList.remo
 
 // ---------- Mission · Duo: lockstep co-op. Both screens run the identical mission; only the two pilots' controls travel over the wire ----------
 const lp=()=>co?co.me:0;
-function T(e){let b=P[0],bd=1e9;for(const q of P)if(q.alive){const d=(q.x-e.x)**2+(q.y-e.y)**2;if(d<bd){bd=d;b=q}}return b}   // each enemy hunts the nearest living pilot
+function T(e){let b=P[0],bd=1e9;for(const q of P)if(q.alive){const dx=q.x-e.x,dy=q.y-e.y,d=dx*dx+dy*dy;if(d<bd){bd=d;b=q}}return b}   // each enemy hunts the nearest living pilot
+const CO_VER='duo-5';
 function cseed(a,b){let h=2166136261;for(const c of[a,b].sort().join(''))h=Math.imul(h^c.charCodeAt(0),16777619);return h|0}
 const cget=(i,n)=>i==co.me?(co.loc[n]||co.init[i]):(co.rem[n]||co.init[i]),chave=(i,n)=>i==co.me||co.rem[n]!==undefined;
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
 function coSend(){const from=co.rem.min===undefined?0:Math.max(0,co.sent-8),a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
      // until we hear the partner, keep resending from tick 0
-  net.room.sendG({t:'i',n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
+  net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
 function coGate(){   // true = run this tick. A tick runs only once both pilots' controls for it are known, so both screens stay identical
   const n=co.n,me=P[co.me],gh=co.gh;
   if(co.rt!==n){co.rt=n;   // my side of this tick: runs once, even if the tick then has to wait for the partner
@@ -1897,12 +1911,13 @@ function coGate(){   // true = run this tick. A tick runs only once both pilots'
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
 function coRecv(m){
   if(!co||!m||!co.rem)return;co.last=Date.now();
+  if(m.t=='i'&&m.v!==CO_VER){netLeave();co=null;msg.textContent='Your partner is on a different version of the game. Refresh both pages and try again.';setPause(false);endMenu();return}
   if(m.t=='i'){const r=co.rem;if(r.min===undefined)r.min=m.n0;m.a.forEach((v,i)=>{r[m.n0+i]=v});
     for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
   else if(m.t=='r')co.sent=Math.min(co.sent,m.n-1);
   else if(m.t=='p')net.room.sendG({t:'q',ts:m.ts});
   else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt;const w=Math.max(2,Math.min(30,Math.ceil((co.rtt/2+22)/16.7)));co.D=w>co.D?w:Math.max(w,co.D-1)}}   // control delay adapts to the connection
-function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended';setPause(false);endMenu()}
+function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended. Refresh both pages and try again.';setPause(false);endMenu()}
 function coLost(){if(!co||co.solo)return;netLeave();co.solo=1;const q=P[1-co.me];if(q){q.alive=false;q.rs=0}pop(W/2,H*.3,'PARTNER LEFT');if(!P.some(o=>o.alive)&&state=='play'){state='between';timer=2.4}}
 setInterval(()=>{if(!co||!net.room||co.solo)return;const R=net.room;
   if(Date.now()-(co.pt||0)>1000){co.pt=Date.now();R.sendG({t:'p',ts:co.pt});R.presence({n:myName(),x:Math.round(P[co.me].x),t:++net.tick})}   // ping + heartbeat
