@@ -1750,7 +1750,7 @@ async function enterRoom(code){
 function acceptRoom(code,from){const rq=lst=='queue';lst='busy';offer=null;wait={code,kind:'join',t:Date.now(),rq,from};pushLobby();ost.textContent=coMode?'Partner found! Connecting…':'Opponent found! Connecting…';syncBtns();enterRoom(code).catch(()=>cancelWait('Could not join the match room.'))}
 function challenge(p){
   if(!RM||wait||lst!='idle')return;
-  const code=rcode(6);lst='busy';wait={code,kind:'ch',t:Date.now()};offer={to:p.peer,code,kind:'ch',co:coMode?1:0};pushLobby();
+  const code=coMode?'1'+rcode(5):rcode(6);lst='busy';wait={code,kind:'ch',t:Date.now()};offer={to:p.peer,code,kind:'ch',co:coMode?1:0};pushLobby();
   ost.textContent='Challenge sent to '+clean(p.presence.n)+'. Waiting for them to accept…';syncBtns();
   enterRoom(code).catch(()=>cancelWait('Could not open a match room.'));
 }
@@ -1773,7 +1773,7 @@ function queueCheck(){   // roster comes only from heartbeats we actually receiv
   if(now-(w.lh||0)>=400){w.lh=now;oroom.presence({x:W/2,t:++w.hb,seen:heard.map(p=>p.peer),to:w.to}).catch(()=>{})}
   const pp=w.to&&mutual.find(p=>p.peer===part);
   if(!pp||pp.presence.to!==MYKEY)return;   // step 2: commit only once the other pilot has chosen us too
-  const a=[MYKEY,part].sort(),code='PM'+a[0].slice(1)+a[1].slice(1),old=oroom;   // both sides derive the same private room name
+  const a=[MYKEY,part].sort(),code=(coMode?'1M':'PM')+a[0].slice(1)+a[1].slice(1),old=oroom;   // both sides derive the same private room name
   let lh=0;const beat=()=>{const t=Date.now();if(t-lh>=400){lh=t;old.presence({x:W/2,t:++w.hb,seen:[part],to:part}).catch(()=>{})}};
   old.hook=beat;beat();const iv=setInterval(beat,500);setTimeout(()=>{clearInterval(iv);old.hook=null;old.leave().catch(()=>{})},4000);   // keep announcing for a few seconds so the other side is sure to see our choice
   oroom=null;wait={code,kind:'join',t:now,rq:1,from:part,hb:0};ost.textContent=coMode?'Partner found! Connecting…':'Opponent found! Connecting…';
@@ -1797,7 +1797,7 @@ function roomCheck(){
   if(Date.now()-wait.t>lim){if(wait.kind=='mm'&&wait.to)bad[wait.to]=Date.now();if(wait.kind=='join'){dismissed[wait.code]=1;if(wait.from)bad[wait.from]=Date.now()}cancelWait(wait.kind=='ch'?'No answer.':wait.kind=='join'&&!wait.rq?'Could not find that match. Ask your friend to keep their invite screen open.':wait.kind=='join'?'Opponent did not connect. Searching again…':undefined,wait.kind=='mm'||!!wait.rq)}
 }
 function beginMatch(opp){
-  const isCo=wait&&wait.kind=='join'?!!opp.presence.co:coMode;clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
+  const isCo=!!(wait&&wait.code&&wait.code[0]=='1');clearInterval(wt);wt=0;Object.assign(net,{on:true,room:oroom,opp:opp.peer,oname:clean(opp.presence.n)||'Rival',rn:0,fc:0,fx:0,fy:0,lfc:0,gone:0,tick:0});
   wait=null;lst='busy';offer=null;pushLobby();renderInv([]);onl.classList.remove('show');
   if(isCo){co={me:MYKEY<opp.peer?0:1,seed:cseed(MYKEY,opp.peer),last:Date.now(),D:8,rtt:0};net.room.onG=coRecv;start('mission')}else start('online');
 }
@@ -1826,7 +1826,7 @@ $('ofind').onclick=()=>{if(!RM){ost.textContent='Still connecting… try again i
 $('oinv').onclick=()=>{
   if(wait)return cancelWait('');
   if(!RM||lst!='idle')return;
-  const c=rcode(5);lst='busy';wait={code:c,kind:'inv',t:Date.now()};pushLobby();syncBtns();$('ocode').textContent=c;ost.textContent='Send your friend the invite link (or the code). The match starts the moment they open it. Keep this screen open.';
+  const c=coMode?'1'+rcode(4):rcode(5);lst='busy';wait={code:c,kind:'inv',t:Date.now()};pushLobby();syncBtns();$('ocode').textContent=c;ost.textContent='Send your friend the invite link (or the code). The match starts the moment they open it. Keep this screen open.';
   enterRoom(c).catch(()=>cancelWait('Could not open a room.'));
 };
 $('ojoin').onclick=()=>{
@@ -1874,7 +1874,8 @@ function T(e){let b=P[0],bd=1e9;for(const q of P)if(q.alive){const d=(q.x-e.x)**
 function cseed(a,b){let h=2166136261;for(const c of[a,b].sort().join(''))h=Math.imul(h^c.charCodeAt(0),16777619);return h|0}
 const cget=(i,n)=>i==co.me?(co.loc[n]||co.init[i]):(co.rem[n]||co.init[i]),chave=(i,n)=>i==co.me||co.rem[n]!==undefined;
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
-function coSend(){const from=co.rem.min===undefined?0:co.sent+1,a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // until we hear the partner, keep resending from tick 0
+function coSend(){const from=co.rem.min===undefined?0:Math.max(0,co.sent-8),a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
+     // until we hear the partner, keep resending from tick 0
   net.room.sendG({t:'i',n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
 function coGate(){   // true = run this tick. A tick runs only once both pilots' controls for it are known, so both screens stay identical
   const n=co.n,me=P[co.me],gh=co.gh;
@@ -1889,7 +1890,7 @@ function coGate(){   // true = run this tick. A tick runs only once both pilots'
   co.vb=co.vb.filter(b=>!b.dead);
   while(co.rec<n+co.D)co.loc[++co.rec]=v;   // my controls take effect D ticks from now, covering the network delay
   if(n%3==0&&!co.solo)coSend()}
-  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>80){co.fs=Date.now();coSend()}return false}   // partner's controls for this tick not here yet: wait
+  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>120){co.fs=Date.now();coSend();net.room.sendG({t:'r',n})}return false}   // partner's controls for this tick not here yet: wait
   co.cur=n;
   if(n%120==0){const h=chash();co.h[n]=h;co.hq.push([n,h]);if(co.rh[n]!==undefined&&co.rh[n]!==h){coDesync();return false}}
   co.n++;return true}
@@ -1898,6 +1899,7 @@ function coRecv(m){
   if(!co||!m||!co.rem)return;co.last=Date.now();
   if(m.t=='i'){const r=co.rem;if(r.min===undefined)r.min=m.n0;m.a.forEach((v,i)=>{r[m.n0+i]=v});
     for(const[n,v]of m.h||[]){if(co.h[n]!==undefined){if(co.h[n]!==v)coDesync()}else co.rh[n]=v}}
+  else if(m.t=='r')co.sent=Math.min(co.sent,m.n-1);
   else if(m.t=='p')net.room.sendG({t:'q',ts:m.ts});
   else if(m.t=='q'){const rtt=Date.now()-m.ts;co.rtt=co.rtt?co.rtt*.7+rtt*.3:rtt;const w=Math.max(2,Math.min(30,Math.ceil((co.rtt/2+22)/16.7)));co.D=w>co.D?w:Math.max(w,co.D-1)}}   // control delay adapts to the connection
 function coDesync(){if(!co)return;netLeave();co=null;msg.textContent='Connection out of sync · mission ended';setPause(false);endMenu()}
