@@ -544,7 +544,7 @@ function jet(x,y,dir,pal,g){
 }
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};co.pv={x:P[1-co.me].x,y:P[1-co.me].y};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
+function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};co.pv={x:P[1-co.me].x,y:P[1-co.me].y};co.off={x:0,y:0};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
   bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40,l=.5+rnd()*.5;if(!(co&&co.rs))parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l,c})}}   // during a replay the dice still roll (so both screens stay identical) but no sparks are added twice
@@ -1912,13 +1912,15 @@ function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-12)
   net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.n-1;co.hq=[]}
 function coSync(){   // fold newly arrived partner controls into history: rewind to the last confirmed state and replay up to now
   const nf=Math.min(co.n,co.R+1),n=co.n;if(nf-co.F<6)return;   // replay in batches of a few ticks to keep the phone cool
+  const ro=1-co.me,bx=P[ro].x,by=P[ro].y;   // where the partner was drawn before this correction
   restore(co.S);co.mute=1;co.rs=1;
   for(let t=co.F;t<=n;t++){
     if(t%120==0&&t<=nf&&co.h[t]===undefined){const h=chash();co.h[t]=h;co.hq.push([t,h]);if(co.rh[t]!==undefined&&co.rh[t]!==h){co.rs=0;co.mute=0;return coDesync()}}
     if(t==nf)co.S=snap();
     if(t==n)break;
     co.cur=t;step();if(!co)return}
-  co.F=nf;co.rs=0;co.mute=0}
+  co.F=nf;co.rs=0;co.mute=0;
+  const a=P[ro];if(a.alive){const o=co.off;o.x+=bx-a.x;o.y+=by-a.y;if(Math.hypot(o.x,o.y)>150)o.x=o.y=0}}
 function coGate(){   // true = simulate one more tick now
   if(co.rs)return true;
   if(co.endReq!==undefined){coFinish();return false}
@@ -1932,12 +1934,8 @@ function coGate(){   // true = simulate one more tick now
   const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
   const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
   co.cur=n;co.n=n+1;if(n%4==0&&!co.solo)coSend();
-  const pr=P[1-co.me],pv=co.pv,lead=co.n-(co.R+1);co.dl=Math.max(lead+1.5,(co.dl||0)-.03);   // how far behind their newest data to draw them
-  pv.px=pv.x;pv.py=pv.y;
-  if(co.R>=2&&pr.alive){const x=Math.max(co.xd||0,Math.min(co.R-1,co.n-co.dl));co.xd=x;   // never drawn backwards
-    const i=Math.floor(x),f=x-i,a=co.rem[i],b=co.rem[i+1]||a,w=Math.min(i,5)||1,c=co.rem[i-w]||a,ex=Math.min(co.dl*.4,5)/w;
-    pv.x=a[0]+(b[0]-a[0])*f+(a[0]-c[0])*ex;pv.y=a[1]+(b[1]-a[1])*f+(a[1]-c[1])*ex}
-  else{pv.x=pr.x;pv.y=pr.y}
+  const pr=P[1-co.me],pv=co.pv,of=co.off;   // partner is drawn at their simulated position (where their shots come from) plus a fading correction offset
+  of.x*=.88;of.y*=.88;if(!pr.alive){of.x=of.y=0}pv.px=pv.x;pv.py=pv.y;pv.x=pr.x+of.x;pv.y=pr.y+of.y;
   return true}
 function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
