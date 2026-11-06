@@ -539,7 +539,7 @@ function jet(x,y,dir,pal,g){
 }
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
-function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
+function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};co.pv={x:P[1-co.me].x,y:P[1-co.me].y};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
   bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:.5+rnd()*.5,c})}}
@@ -1563,7 +1563,7 @@ function draw(){
   for(const e of en)if(!e.gnd&&!(e.warn>0))drawEnemy(e);
   for(const e of en)if(e.hp<e.mhp){const by=e.y-(e.hh?e.hh+8:e.gnd?30:44);ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(e.x-18,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(e.x-18,by,36*e.hp/e.mhp,4)}
   drawPickups();
-  for(const p of P)if(p.alive)jet(ix(p,'x'),ix(p,'y'),p.dir,p.pal,p.g||1);
+  for(const p of P)if(p.alive){const q=co&&p.i!=co.me?co.pv:p;jet(ix(q,'x'),ix(q,'y'),p.dir,p.pal,p.g||1)}
   ctx.lineCap='round';
   const BL=bul;
   for(const b of BL){b.ox=b.x;b.oy=b.y;b.x=ix(b,'x');b.y=ix(b,'y')}
@@ -1896,7 +1896,12 @@ function dc(o,m){if(o===null||typeof o!='object')return o;let c=m.get(o);if(c!==
   c={};m.set(o,c);for(const k in o)c[k]=dc(o[k],m);return c}
 const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,parts,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops},new Map);
 function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,parts,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops}=dc(S,new Map))}
-const cget=(i,t)=>i==co.me?(co.loc[t]||co.init[i]):(co.rem[t]||(co.R>=0?co.rem[co.R]:0)||co.init[i]);   // real controls if known, else "same as their last known"
+function copred(t){   // partner's controls for a tick we haven't heard yet: keep their recent heading, fading out so a sudden stop costs little
+  const R=co.R,o=1-co.me;if(R<0)return co.init[o];const a=co.rem[R],w=Math.min(R,4),b=co.rem[R-w]||a,k=Math.min(t-R,40);
+  let vx=w?(a[0]-b[0])/w:0,vy=w?(a[1]-b[1])/w:0;const sp=Math.hypot(vx,vy);if(sp>6){vx*=6/sp;vy*=6/sp}
+  let g=0,d=1;for(let i=0;i<k;i++){d*=.92;g+=d}
+  return[Math.max(28,Math.min(W-28,a[0]+vx*g)),Math.max(30,Math.min(H-30,a[1]+vy*g)),a[2]]}
+const cget=(i,t)=>i==co.me?(co.loc[t]||co.init[i]):(co.rem[t]||copred(t));   // real controls if known, else the prediction
 function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.round(q.y)*13+Math.round(q.hp))|0;return(h*31+en.length*101+bul.length*17+Math.round(scroll))|0}
 function coSend(){if(!net.room)return;const from=co.R<0?0:Math.max(0,co.sent-8),a=co.loc.slice(from,co.n);if(!a.length&&!co.hq.length)return;   // each message repeats the last few ticks, so one lost message costs nothing
   net.room.sendG({t:'i',v:CO_VER,n0:from,a,h:co.hq});co.sent=co.n-1;co.hq=[]}
@@ -1920,7 +1925,9 @@ function coGate(){   // true = simulate one more tick now
     if(lead>lim){if(Date.now()-co.fs>120){co.fs=Date.now();coSend();net.room.sendG({t:'r',n:co.R+1})}return false}}
   const n=co.n,me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
   const f=control(gh)?1:0;co.loc[n]=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];   // my controls for this tick: used immediately
-  co.cur=n;co.n=n+1;if(n%2==0&&!co.solo)coSend();return true}
+  co.cur=n;co.n=n+1;if(n%2==0&&!co.solo)coSend();
+  const pr=P[1-co.me],pv=co.pv;pv.px=pv.x;pv.py=pv.y;if(Math.hypot(pr.x-pv.x,pr.y-pv.y)>110){pv.x=pr.x;pv.y=pr.y}else{pv.x+=(pr.x-pv.x)*.5;pv.y+=(pr.y-pv.y)*.5}
+  return true}
 function coFinish(){if(pts>best){best=pts;try{localStorage.setItem('beyondBorderBest',best)}catch(e){}}const t='Mission failed · Score '+pts+' · Best '+best;netLeave();co=null;msg.textContent=t;setPause(false);endMenu()}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
 function coRecv(m){
