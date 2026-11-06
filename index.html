@@ -1877,9 +1877,9 @@ function chash(){let h=pts|0;for(const q of P)h=(h*31+Math.round(q.x)*7+Math.rou
 function coSend(){const from=co.rem.min===undefined?0:co.sent+1,a=co.loc.slice(from,co.rec+1);if(!a.length&&!co.hq.length)return;   // until we hear the partner, keep resending from tick 0
   net.room.sendG({t:'i',n0:from,a,h:co.hq});co.sent=co.rec;co.hq=[]}
 function coGate(){   // true = run this tick. A tick runs only once both pilots' controls for it are known, so both screens stay identical
-  const n=co.n;
-  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>80){co.fs=Date.now();coSend()}return false}
-  co.cur=n;const me=P[co.me],gh=co.gh;if(!me.alive){gh.x=me.x;gh.y=me.y}
+  const n=co.n,me=P[co.me],gh=co.gh;
+  if(co.rt!==n){co.rt=n;   // my side of this tick: runs once, even if the tick then has to wait for the partner
+  if(!me.alive){gh.x=me.x;gh.y=me.y}
   gh.px=gh.x;gh.py=gh.y;gh.g=me.g||1;gh.cd-=DT;
   const f=control(gh)?1:0,v=[Math.round(gh.x*10)/10,Math.round(gh.y*10)/10,f];
   if(f&&me.alive&&gh.cd<=0){gh.cd=.22;SFX.shoot(gh);for(const gx of GUNS[Math.min(5,gh.g)-1]){const tip=gx?GE[Math.abs(gx)]-5:-38;co.vb.push({x:gh.x+gx*.9,y:gh.y+(tip-2)*.9,vx:0,vy:-520,o:co.me,d:9,tr:[]})}}   // instant local shots (visual): the shared sim applies the real damage
@@ -1888,8 +1888,10 @@ function coGate(){   // true = run this tick. A tick runs only once both pilots'
     if(b.y<-20)b.dead=1}
   co.vb=co.vb.filter(b=>!b.dead);
   while(co.rec<n+co.D)co.loc[++co.rec]=v;   // my controls take effect D ticks from now, covering the network delay
+  if(n%3==0&&!co.solo)coSend()}
+  if(!co.solo&&!chave(1-co.me,n)){if(Date.now()-co.fs>80){co.fs=Date.now();coSend()}return false}   // partner's controls for this tick not here yet: wait
+  co.cur=n;
   if(n%120==0){const h=chash();co.h[n]=h;co.hq.push([n,h]);if(co.rh[n]!==undefined&&co.rh[n]!==h){coDesync();return false}}
-  if(n%3==0&&!co.solo)coSend();
   co.n++;return true}
 function hStep(){for(const q of P)if(!q.alive&&q.rs>0){q.rs-=DT;if(q.rs<=0&&P.some(o=>o.alive)){q.alive=true;q.hp=50;pop(q.x,q.y-24,'BACK IN ACTION');SFX.pickup('hp')}}}
 function coRecv(m){
