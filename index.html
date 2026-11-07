@@ -488,7 +488,7 @@ const SFX=(()=>{
       noise({t:.05,v:.04*k,ft:'highpass',f0:3500,f1:2500,a:.001,at:.045});
       noise({t:.07,v:.07*k,ft:'bandpass',f0:1200,f1:500,q:1.6,a:.001,at:.075});
     }
-    const dk=play?en.filter(e=>e.ty=='kamikaze'&&!e.dead&&e.y>-30):[];
+    const dk=play?en.filter(e=>e.ty=='kamikaze'&&!e.dead&&e.y>-30&&!(e.warn>0)):[];
     to(drn,'drn',dk.length?Math.min(.028,.016+.004*dk.length):0,.2);
     if(dk.length){const dm=Math.min(...dk.map(e=>Math.hypot(e.x-P[0].x,e.y-P[0].y))),f=88+Math.max(0,1-dm/450)*55;if(Math.abs(f-dfr)>4){dfr=f;drn.o1.frequency.setTargetAtTime(f,now,.1);drn.o2.frequency.setTargetAtTime(f*2,now,.1)}}
     to(fire,'fire',play&&fires.some(f=>{const y=scroll-f.wy;return f.t>1.2&&y>-60&&y<H+60})?.012:0,.5);
@@ -924,10 +924,42 @@ function blast(e){   // drone explosion: area damage to you and a little to anyt
   for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y)}
   for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<R-10){o.hp-=22;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
-function kamikaze(nn){   // suicide drones dive in from the top and home in on you straight away
-  const n=nn||(1+(mt>110?1:0)+(mt>180?1:0)),x0=70+rnd()*(W-140);
-  const gap=Math.min(125,(W-110)/Math.max(1,n-1)),xs=rnd()<.5?1:-1;
-  for(let i=0;i<n;i++)en.push({ty:'kamikaze',x:Math.max(40,Math.min(W-40,(n>1?W/2+(i-(n-1)/2)*gap*xs+(rnd()-.5)*30:x0))),y:-40-i*70-rnd()*30,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0});
+let lastKP='';
+function kamikaze(nn){   // suicide drones arrive in a randomly chosen pattern (never the same one twice in a row); every pattern keeps them well spread out
+  const n=nn||(1+(mt>110?1:0)+(mt>180?1:0)),cl=x=>Math.max(40,Math.min(W-40,x));
+  const mk=(x,y,o)=>Object.assign({ty:'kamikaze',x,y,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0},o);
+  let pool;
+  if(n<2)pool=[['line',3],['side',2.2]];
+  else{pool=[['line',2],['stream',2.2],['rain',2],['side',1.8]];
+    if(mt>70)pool.push(['pincer',2.2],['fan',1.9]);
+    if(n>=3)pool.push(['vee',2.2]);
+    if(n>=3&&mt>110)pool.push(['wall',1.5])}
+  pool=pool.filter(q=>q[0]!=lastKP);
+  let r=rnd()*pool.reduce((t,q)=>t+q[1],0),pat=pool[pool.length-1][0];for(const q of pool){r-=q[1];if(r<=0){pat=q[0];break}}
+  lastKP=pat;
+  if(pat=='line'){   // staggered line from the top, random direction
+    const x0=70+rnd()*(W-140),gap=Math.min(125,(W-110)/Math.max(1,n-1)),xs=rnd()<.5?1:-1;
+    for(let i=0;i<n;i++)en.push(mk(cl(n>1?W/2+(i-(n-1)/2)*gap*xs+(rnd()-.5)*30:x0),-40-i*70-rnd()*30));
+  }else if(pat=='stream'){   // single file: one drone after another down the same lane
+    const x0=90+rnd()*(W-180);
+    for(let i=0;i<n;i++)en.push(mk(cl(x0+Math.sin(i*1.7)*34),-40,{hold:i*.75}));
+  }else if(pat=='vee'){   // V formation, leader in front
+    const cx=W/2+(rnd()-.5)*80;
+    for(let i=0;i<n;i++){const j=(i+1)>>1,sd=i%2?1:-1;en.push(mk(cl(cx+(i?sd*j*66:0)),-40-j*60))}
+  }else if(pat=='fan'){   // burst out of one spot in a spread, then each curls back toward you
+    const x0=W/2+(rnd()-.5)*160;
+    for(let i=0;i<n;i++){const k=i-(n-1)/2;en.push(mk(cl(x0+k*52),-40,{ang:Math.PI/2+k*.42,spd:150,hold:i*.1}))}
+  }else if(pat=='rain'){   // random lanes, random delays
+    const sl=L(n,i=>i).sort(()=>rnd()-.5),seg=(W-100)/n;
+    for(let i=0;i<n;i++)en.push(mk(50+seg*(sl[i]+.15+rnd()*.7),-40,{hold:i*.5+rnd()*.25}));
+  }else if(pat=='wall'){   // a line across the whole width, all dive together
+    const gap=(W-110)/(n-1);
+    for(let i=0;i<n;i++)en.push(mk(55+i*gap,-40-(i%2)*45));
+  }else{   // 'side' / 'pincer': come in from the screen edges, a blinking arrow warns you first
+    const sd=rnd()<.5?1:-1;
+    for(let i=0;i<n;i++){const d=pat=='pincer'?(i%2?-1:1):sd,k=pat=='pincer'?i>>1:i;
+      en.push(mk(d>0?-30:W+30,70+k*62+rnd()*40,{d,ang:d>0?0:Math.PI,aim:1,warn:.9+k*.35}))}
+  }
 }
 function starfield(slot,n){   // star plane glides in toward a spot near the centre (spread out when several come together), sprays random shots while spinning, then drifts away by a side
   n=n||1;SFX.whoosh(W/2);const tx=Math.max(70,Math.min(W-70,n>1?W/2+((slot||0)-(n-1)/2)*(n==3?140:170)+(rnd()-.5)*30:W/2+(rnd()-.5)*170)),gy=H*.26+rnd()*H*.16,x0=Math.max(60,Math.min(W-60,tx+(rnd()-.5)*220));
@@ -988,20 +1020,28 @@ function fireN(e,p){
 }
 // Cargo loot: pure luck. Every cargo plane rolls the same flat odds: a rare gun (only once the jet is "due" for one), a health pack, or nothing.
 // "Due" is a randomised stage that is re-rolled every run and after every gun, so the 5-gun jet only shows up very late and never on a fixed schedule.
-const GUN_FLOOR=[0,0,5,8,12];   // earliest stage for the next gun, by the gun count you just reached (the first gun upgrade is due from stage 3-5)
+const GUN_FLOOR=[0,0,5,8,12];   // earliest stage for the next gun, by the gun count you just reached (the first gun upgrade is due from stage 1 about 1 run in 4 but only once the first mini boss fight has begun, never in the quiet stage-1 lead-up; otherwise from stage 2, right after it)
 const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
-function gunDue(g){return g<=1?ri(3,5):Math.max(GUN_FLOOR[g]+ri(0,3),D.stage+ri(2,4))}
+function gunDue(g){return g<=1?(rnd()<.25?1:2):Math.max(GUN_FLOOR[g]+ri(0,3),D.stage+ri(2,4))}
 function cargoLoot(e){
+  if(P.length>1){   // duo: every player is guaranteed at least 2 gun upgrades. Each cargo plane drops a gun for each player still short of 2 (it only works for that jet), plus the usual health roll
+    if(D.duo1===undefined)D.duo1=rnd()<.25?1:2;
+    let n=0;
+    P.forEach((q,i)=>{const g=q.g||1;if(!q.alive||g>=3)return;
+      const ok=g<=1?(D.stage>=D.duo1&&(D.stage>=2||D.ms)):D.stage>=3;   // 1st upgrade: after the boss (sometimes during its fight); 2nd: from stage 3
+      if(ok&&rnd()<(e.sup?.9:.5)){pickups.push({x:e.x+(n?(i?44:-44):0),y:e.y,t:0,k:'gun',for:i});n++}});
+    if(n){if(rnd()<.15)pickups.push({x:e.x,y:e.y-34,t:0,k:'hp'});return}
+  }
   const p0=P.filter(q=>q.alive).sort((a,b)=>(a.g||1)-(b.g||1))[0];if(!p0)return;
   const g=p0.g||1;if(D.gunAt===undefined)D.gunAt=gunDue(1);
-  const gunP=(g<5&&D.stage>=D.gunAt)?.08:0,r=rnd();
+  const gunP=(g<5&&D.stage>=D.gunAt&&(D.stage>=2||D.ms))?(g<=1?(e.sup?.5:.22):.08):0,r=rnd();   // your very first gun is much more likely to drop (and the post-boss supply plane favours it)
   if(r<gunP)pickups.push({x:e.x,y:e.y,t:0,k:'gun'});
   else if(r<gunP+.3)pickups.push({x:e.x,y:e.y,t:0,k:'hp'});
 }
 function stepFires(){
   const p=P[0];stepCrashes();
   for(const o of pickups){o.t+=DT;o.y+=55*DT;o.x+=Math.sin(o.t*2.2)*14*DT;
-    const p=P.find(q=>q.alive&&Math.hypot(q.x-o.x,q.y-o.y)<26);if(p){o.dead=1;burst(o.x,o.y,C.cream,12);
+    const p=P.find((q,qi)=>q.alive&&(o.for===undefined||o.for===qi||!P[o.for]||!P[o.for].alive)&&Math.hypot(q.x-o.x,q.y-o.y)<26);if(p){o.dead=1;burst(o.x,o.y,C.cream,12);
       if(o.k=='gun'){if((p.g||1)<5){p.g=(p.g||1)+1;D.gunAt=gunDue(p.g);pop(o.x,o.y-20,'GUN UPGRADE  '+p.g+'/5');SFX.pickup('gun')}else{pts+=300;pop(o.x,o.y-20,'MAX GUNS +300');SFX.pickup('max')}}
       else{p.hp=Math.min(100,p.hp+35);pop(o.x,o.y-20,'HEALTH +35');SFX.pickup('hp')}}}
   pickups=pickups.filter(o=>!o.dead&&o.y<H+30);
@@ -1015,7 +1055,7 @@ function drawPickups(){
   for(const o of pickups){const g=.5+.5*Math.sin(o.t*6);
     ctx.fillStyle='rgba(236,217,208,'+(.18+.14*g)+')';ctx.beginPath();ctx.arc(o.x,o.y,17+g*3,0,6.28);ctx.fill();
     if(o.k=='gun'){ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(o.x,o.y,11,0,6.28);ctx.fill();ctx.strokeStyle=C.ember;ctx.lineWidth=1.5;ctx.stroke();
-      ctx.fillStyle=C.cream;ctx.fillRect(o.x-6,o.y-3,2.6,9);ctx.fillRect(o.x-1.3,o.y-7,2.6,13);ctx.fillRect(o.x+3.4,o.y-3,2.6,9)}   // three bullets = gun upgrade
+      ctx.fillStyle=C.cream;ctx.fillRect(o.x-6,o.y-3,2.6,9);ctx.fillRect(o.x-1.3,o.y-7,2.6,13);ctx.fillRect(o.x+3.4,o.y-3,2.6,9);if(o.for!==undefined)txt('P'+(o.for+1),o.x,o.y-24,12,C.cream)}   // three bullets = gun upgrade
     else{ctx.fillStyle=C.cream;ctx.beginPath();ctx.arc(o.x,o.y,11,0,6.28);ctx.fill();ctx.strokeStyle='rgba(24,35,34,.6)';ctx.lineWidth=1.5;ctx.stroke();
       ctx.fillStyle=C.brick;ctx.fillRect(o.x-2.6,o.y-7,5.2,14);ctx.fillRect(o.x-7,o.y-2.6,14,5.2)}}
 }
@@ -1809,6 +1849,9 @@ function mission(){
       e.y+=58*DT;
       if(e.y>H+80)e.dead=1;
     }else if(ty=='kamikaze'){   // turns toward you at a limited rate (so it can be dodged), speeds up, blows up on contact
+      if(e.hold>0){e.hold-=DT;continue}   // waiting off-screen so the group arrives one by one
+      if(e.warn>0){e.warn-=DT;continue}   // edge arrow is blinking
+      if(e.aim){e.aim=0;if(p.alive)e.ang=Math.atan2(p.y-e.y,p.x-e.x)}   // side entries launch straight at where you are now
       e.spd=Math.min(235,e.spd+38*DT);if(!e.snd&&e.y>-10){e.snd=1;SFX.dive(e.x)}
       if(p.alive){let d=Math.atan2(p.y-e.y,p.x-e.x)-e.ang;while(d>Math.PI)d-=6.2832;while(d<-Math.PI)d+=6.2832;e.ang+=Math.max(-2.1*DT,Math.min(2.1*DT,d))}
       e.x+=Math.cos(e.ang)*e.spd*DT;e.y+=Math.sin(e.ang)*e.spd*DT;
