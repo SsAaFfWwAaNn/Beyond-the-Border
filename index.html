@@ -571,7 +571,7 @@ function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL
 function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};co.pv={x:P[1-co.me].x,y:P[1-co.me].y};co.off={x:0,y:0};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
   bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];crashes=[];chunks=[];ripples=[];floats=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
-function burst(x,y,c,n){for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40,l=.5+rnd()*.5;if(!(co&&co.rs))parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l,c})}}   // during a replay the dice still roll (so both screens stay identical) but no sparks are added twice
+function burst(x,y,c,n){const keep=n<8?n:Math.ceil(n*(.5+FXQ*.5));for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40,l=.5+rnd()*.5;if(i<keep&&!(co&&co.rs))parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:n<8?l:l*.8,c})}}   // during a replay the dice still roll (so both screens stay identical) but no sparks are added twice
 // gun layouts by gun count (x offsets in jet-model units). GE = y of the wing's leading edge at that x, so every barrel sits right on the airframe
 const GUNS=[[0],[-7,7],[-13,0,13],[-20,-7,7,20],[-27,-13,0,13,27]],GE={7:-5,13:0,20:5,27:10};
 function fire(p){if(p.cd>0)return;p.cd=.22;SFX.shoot(p);
@@ -995,7 +995,7 @@ function drawPickups(){
       ctx.fillStyle=C.brick;ctx.fillRect(o.x-2.6,o.y-7,5.2,14);ctx.fillRect(o.x-7,o.y-2.6,14,5.2)}}
 }
 function drawFires(){
-  for(const q of rings){const k=q.t/.5;ctx.strokeStyle='rgba(236,217,208,'+.85*(1-k)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(q.x,q.y,80*k,0,6.28);ctx.stroke();ctx.fillStyle='rgba(233,148,106,'+.35*(1-k)+')';ctx.fill()}
+  for(const q of rings){const k=q.t/.5,s=q.s||1;ctx.strokeStyle='rgba(236,217,208,'+(q.s?.5:.85)*(1-k)+')';ctx.lineWidth=q.s?2:3;ctx.beginPath();ctx.arc(q.x,q.y,80*s*k,0,6.28);ctx.stroke();ctx.fillStyle='rgba(233,148,106,'+(q.s?.14:.35)*(1-k)+')';ctx.fill()}
   for(const f of fires){
     const y=scroll-f.wy,x=f.x,fade=Math.min(1,(f.life-f.t)/3),t=f.t;
     ctx.fillStyle='rgba(20,16,20,'+.38*fade+')';ctx.beginPath();ctx.ellipse(x,y,52+Math.min(30,t*9),44+Math.min(26,t*8),0,0,6.28);ctx.fill();
@@ -1150,11 +1150,11 @@ function drawRubble(w,x,y){
   ctx.save();ctx.globalAlpha=wa;
   if(w.wet){const k=Math.min(1,age/1.5),sx=(26+w.r*.5)*(.6+.6*k),sy=(22+w.r*.4)*(.6+.6*k);ctx.fillStyle='rgba(18,13,17,.34)';ctx.beginPath();ctx.ellipse(x,y,sx,sy,0,0,6.2832);ctx.fill()}   // aircraft that came down in the gulf: oil slick, then it slips under
   ctx.save();ctx.translate(x,y);ctx.rotate(w.rot);if(w.sc)ctx.scale(w.sc,w.sc);ctx.drawImage(wSprite(w.k,w.v),-d[0]/2,-d[1]/2,d[0],d[1]);ctx.restore();
-  const life=w.wet?6:w.k=='oil'||w.k=='chook'?30:w.k=='tank'||w.k=='truck'||w.k=='heli'?22:16,f=1-age/life;   // embers die down and the smoke thins, then only the rubble is left
+  const life=w.wet?4:w.k=='oil'||w.k=='chook'?18:w.k=='tank'||w.k=='truck'||w.k=='heli'?13:9,f=1-age/life;   // embers die down and the smoke thins, then only the rubble is left
   if(f>0){
     const s=w.sc||1;
-    if(f>.25)for(let i=0;i<w.ne;i++){const a=hs(w.v+i*3,3)*6.2832,r=hs(w.v+i*3,5)*w.r*.55,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x+Math.cos(a)*r,y+Math.sin(a)*r,(1.2+fl*1.4)*s,f*(.35+.65*fl))}
-    for(let i=0;i<3;i++){const p=(age*.35+i/3+w.v*.17)%1;ctx.fillStyle='rgba(44,38,42,'+al(.3*f*(1-p))+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.1+i*2.4+w.v)*5+p*12,y-6-p*52,(5+p*(w.k=='oil'||w.k=='chook'?20:14))*s,0,6.2832);ctx.fill()}
+    if(f>.25)for(let i=0;i<Math.min(w.ne,2);i++){const a=hs(w.v+i*3,3)*6.2832,r=hs(w.v+i*3,5)*w.r*.55,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x+Math.cos(a)*r,y+Math.sin(a)*r,(1.1+fl*1.2)*s,f*.8*(.35+.65*fl))}
+    for(let i=0;i<2;i++){const p=(age*.35+i/2+w.v*.17)%1;ctx.fillStyle='rgba(44,38,42,'+al(.18*f*(1-p))+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.1+i*2.4+w.v)*5+p*10,y-6-p*34,(4+p*(w.k=='oil'||w.k=='chook'?13:9))*s,0,6.2832);ctx.fill()}
   }
   ctx.restore();
 }
@@ -1244,6 +1244,7 @@ const CRK={
   striker:{...CRD,T:[1,1.5]}
 };
 const CMAX=26,SCRAP=['#2b1a1e','#4f2a2e','#3d2b2a','#6b2f2f','#161112'],WATER='rgba(240,232,228,.9)',DIRT='rgba(130,108,98,.7)';
+const FXQ=.6;const fq=n=>n<8?n:Math.max(4,Math.round(n*FXQ));   // effect density 0..1: thins big crash bursts/dust/scrap (cosmetic only, never touches the simulation's dice)
 let SHK=0,FLASH=0,SLOW=0;   // screen shake, white flash, real-time slow motion (all cosmetic)
 const isWet=(x,y)=>{const wy=scroll-y;return x>landL(wy)+14&&x<landR(wy)-14};
 const inWater=(x,y,m)=>{const wy=scroll-y;m=m||0;return x>landL(wy)+m&&x<landR(wy)-m};   // exact shoreline test: spray and rings must never reach past it
@@ -1267,9 +1268,9 @@ function splashAt(x,y,k,vx,vy){   // impact splash: energy scales with speed, a 
 function edgeDist(x,y){const wy=scroll-y;return Math.max(0,Math.min(x-landL(wy),landR(wy)-x))}   // distance to the nearest shore
 // flying scrap with real ballistics: it has altitude and gravity, tumbles, bounces once, skids on land, or hits the water and sinks
 function chunk(k,x,y,vx,vy,s,c,L,f,z){
-  if(co&&co.rs)return;if(chunks.length>90)chunks.shift();
+  if(co&&co.rs)return;if(chunks.length>50)chunks.shift();
   chunks.push({k,x,y,vx,vy,rot:Math.random()*6.28,vr:(Math.random()-.5)*(k=='blade'?26:14),s,c,l:Math.max(L,k=='pilot'?9:2.5),f:f||0,z:z===undefined?.25:z,vz:k=='pilot'?.7:.12+Math.random()*.4,ph:0,bn:0,wy:0,sx:0,sy:0})}
-function scrap(x,y,n,sp,vx0,vy0,cols,z){for(let i=0;i<n;i++){const a=Math.random()*6.2832,v=sp*(.35+Math.random()*.8);chunk(Math.random()<.6?'plate':'wing',x,y,vx0+Math.cos(a)*v,vy0+Math.sin(a)*v,4+Math.random()*7,cols[i%cols.length],2.5,Math.random()<.4,z)}}
+function scrap(x,y,n,sp,vx0,vy0,cols,z){for(let i=0;i<n;i++){const a=Math.random()*6.2832,v=sp*(.35+Math.random()*.8);chunk(Math.random()<.6?'plate':'wing',x,y,vx0+Math.cos(a)*v,vy0+Math.sin(a)*v,4+Math.random()*6,cols[i%cols.length],2,Math.random()<.2,z)}}
 // ----- floating wreckage: pieces bob on the surface, ride the current (a little faster than the shore scrolls), rest against the bank, and slowly waterlog -----
 function slickAt(x,y,rx,ry,a){   // oil sheen: dense in the middle, feathering to nothing at the edge, so it never reads as a hard circle
   if(a<=.004)return;const g=ctx.createRadialGradient(0,0,0,0,0,1);g.addColorStop(0,'rgba(18,13,17,'+al(a)+')');g.addColorStop(.55,'rgba(18,13,17,'+al(a*.6)+')');g.addColorStop(1,'rgba(18,13,17,0)');
@@ -1314,7 +1315,7 @@ function stepChunks(){
         if(isWet(q.x,q.y)&&(q.k=='plate'||q.k=='wing')){floatPiece(q.x,q.y,q.k,q.s,q.c||'#2b1a1e',q.vx*.12,q.vy*.12,q.rot,q.vr*.15);q.l=0;fx(q.x,q.y,WATER,5,60,3,.5,1);ripple(q.x,q.y,16,.9)}
         else if(isWet(q.x,q.y)){q.ph=3;q.wy=scroll-q.y;q.l=Math.min(q.l,2);q.sx=q.vx*.2;q.sy=q.vy*.2;q.vr*=.3;fx(q.x,q.y,WATER,5,60,3,.5,1);ripple(q.x,q.y,16,.9)}
         else if(q.bn<1&&Math.hypot(q.vx,q.vy)>80){q.bn++;q.vz=.28;q.vx*=.5;q.vy*=.5;q.vr*=.6;fx(q.x,q.y,DIRT,3,40,3,.4,1)}
-        else{q.ph=1;q.wy=scroll-q.y;q.sx=q.vx;q.sy=q.vy;q.l=Math.max(q.l,5)}}
+        else{q.ph=1;q.wy=scroll-q.y;q.sx=q.vx;q.sy=q.vy;q.l=Math.min(Math.max(q.l,2.5),3.5)}}
     }else{const d=q.ph==3?1.5:3.2;q.sx*=1-d*DT;q.sy*=1-d*DT;q.x+=q.sx*DT;q.wy-=q.sy*DT;q.y=scroll-q.wy;q.vr*=1-3*DT}   // sliding in the world frame: the ground scrolls past
   }
   chunks=chunks.filter(q=>q.l>0&&q.y<H+60);
@@ -1341,7 +1342,7 @@ function crashDamage(x,y,big,r){   // falling wreckage and the fireball can scra
   for(const e of en){if(e.dead||!e.gnd)continue;const d=Math.hypot(e.x-x,e.y-y),R=e.r+20+big*12+r*.3;
     if(d<R){const dmg=Math.max(1,Math.round((3+big*3)*(1-d/R*.6)));e.hp=Math.max(1,e.hp-dmg);burst(e.x,e.y,C.ember,3)}}}
 function explodeAt(c){crashDamage(c.x,c.y,c.big,c.r);if(c.pl)SHK=Math.max(SHK,6);   // fuel goes up after impact (never in the air)
-  burst(c.x,c.y,C.ember,24);burst(c.x,c.y,C.cream,10);burst(c.x,c.y,C.ink,10);rings.push({x:c.x,y:c.y,t:0});SFX.boom(c.big,c.x);scrap(c.x,c.y,6+c.big*4,210,0,20,SCRAP,.1);fx(c.x,c.y,DIRT,10,110,3,.7,1);fx(c.x,c.y,'rgba(150,128,118,.55)',14+c.big*6,190,2.5,.9,0)}   // dust shockwave
+  burst(c.x,c.y,C.ember,24);burst(c.x,c.y,C.cream,10);burst(c.x,c.y,C.ink,10);rings.push({x:c.x,y:c.y,t:0,s:.55+c.big*.08});SFX.boom(c.big,c.x);scrap(c.x,c.y,fq(6+c.big*4),210,0,20,SCRAP,.1);fx(c.x,c.y,DIRT,fq(10),110,3,.6,1);fx(c.x,c.y,'rgba(150,128,118,.4)',fq(14+c.big*6),170,2.5,.7,0)}   // dust shockwave
 function startSink(c){   // the wreck goes under: it wallows, the water climbs over it, air bubbles out, an oil slick spreads
   c.gd=3;c.gt=0;c.z=0;c.sd=c.ty=='chinook'?5.2:c.ty=='heli'?3.8:3.2+c.big*.6;
   if(c.wy===undefined){c.wy=scroll-c.y;c.sx=c.vx*.3;c.sy=c.vy*.3;c.gp=[{x:c.x,wy:c.wy}]}
@@ -1353,7 +1354,7 @@ function stepCrashes(){
     if(c.gd==1){   // on the ground: the airframe skids and tumbles, grinding itself to pieces, leaving a gouge, then comes to rest
       c.gt+=DT;c.sx*=1-2.3*DT;c.sy*=1-2.3*DT;c.x+=c.sx*DT;c.wy-=c.sy*DT;c.y=scroll-c.wy;c.vr*=1-3*DT;c.rot+=c.vr*DT;
       if(isWet(c.x,c.y)){c.gd=2;c.gt=Math.max(0,c.gt-.4);splashAt(c.x,c.y,1+c.big*.4,c.sx,-c.sy);continue}   // slid into the gulf
-      if(tk){c.gp.push({x:c.x,wy:c.wy});burst(c.x,c.y,C.ember,2);if(c.gp.length%3==0)chunk(Math.random()<.5?'plate':'wing',c.x,c.y,c.sx*.6+(Math.random()-.5)*150,-c.sy*.3+(Math.random()-.5)*150,5+Math.random()*7,SCRAP[c.n%5],2.5,1,.05);if(c.gp.length%2==0)fx(c.x,c.y,DIRT,3,60,3,.5,1)}
+      if(tk){c.gp.push({x:c.x,wy:c.wy});burst(c.x,c.y,C.ember,2);if(c.gp.length%5==0)chunk(Math.random()<.5?'plate':'wing',c.x,c.y,c.sx*.6+(Math.random()-.5)*150,-c.sy*.3+(Math.random()-.5)*150,5+Math.random()*7,SCRAP[c.n%5],2.5,1,.05);if(c.gp.length%3==0)fx(c.x,c.y,DIRT,3,60,3,.4,1)}
       if(!c.ws&&c.t>0&&c.gt>.25&&c.wt){c.ws=1;c.vr+=(c.vr>=0?1:-1)*7;chunk('wing',c.x,c.y,c.sx*.5+(c.vr>0?90:-90),-c.sy*.2,26,'#3a2a2d',3,1,.1)}   // a wing digs in and the jet cartwheels
       if(Math.hypot(c.sx,c.sy)<14||c.gt>1.3||c.y>H+120){
         c.dead=1;let mn=c.gp[0].wy,mx=mn;for(const p of c.gp){if(p.wy<mn)mn=p.wy;if(p.wy>mx)mx=p.wy}
@@ -1380,7 +1381,7 @@ function stepCrashes(){
         floatPiece(c.x+Math.cos(a)*c.r*.4,c.y+Math.sin(a)*c.r*.4,w?'wing':'plate',w?16+Math.random()*10:5+Math.random()*7,w?'#3a2a2d':SCRAP[c.n%5],Math.cos(a)*v,Math.sin(a)*v,Math.random()*6.28,(Math.random()-.5)*3)}
       if(u>=1){c.dead=1;if(!(co&&co.rs))floats.push({k:'slick',x:c.x,wy:c.wy,R:(c.r+c.big*6+10)*2.2,t:0,life:5})}   // the oil slick stays and fades slowly; the floating scraps were released while it sank
       continue}
-    if(c.pl&&!c.hit){c.hit=1;burst(c.x,c.y,C.ember,30);burst(c.x,c.y,C.cream,14);rings.push({x:c.x,y:c.y,t:0});SFX.boom(1,c.x)}   // engine fireball the instant it is hit
+    if(c.pl&&!c.hit){c.hit=1;burst(c.x,c.y,C.ember,30);burst(c.x,c.y,C.cream,14);rings.push({x:c.x,y:c.y,t:0,s:.7});SFX.boom(1,c.x)}   // engine fireball the instant it is hit
     c.vr+=c.ar*DT;if(c.vr>c.vm)c.vr=c.vm;else if(c.vr<-c.vm)c.vr=-c.vm;c.rot+=c.vr*DT;   // spin keeps winding up
     {const w=c.tw*DT,ox=c.vx;c.vx-=c.vy*w;c.vy+=ox*w+c.ac*DT}   // spiralling, steepening dive
     {const spd=Math.hypot(c.vx,c.vy),dr=(.18+spd*.0016+(c.ws?.25:0)+Math.max(0,-c.vz)*.2)*DT;c.vx*=1-dr;c.vy*=1-dr}   // quadratic drag; a torn-off wing and a steepening fall bleed forward speed
@@ -1394,7 +1395,7 @@ function stepCrashes(){
       c.ws=1;const s=c.vr>=0?1:-1;c.ar+=s*9;c.vr+=s*3;burst(c.x,c.y,C.ember,8);burst(c.x,c.y,C.cream,4);
       const a=c.rot+s*Math.PI/2;chunk('wing',c.x,c.y,c.vx+Math.cos(a)*130,c.vy+Math.sin(a)*130,26,'#3a2a2d',2.5,1,c.z)}
     if(c.shed&&c.se<4&&c.t>=.5*(c.se+1)){   // big machines shed panels, a tail section and burning pieces as they fall (no explosion until they hit)
-      c.se++;scrap(c.x,c.y,3,150,c.vx,c.vy,SCRAP,c.z);burst(c.x,c.y,C.ember,5)}
+      c.se++;scrap(c.x,c.y,2,150,c.vx,c.vy,SCRAP,c.z);burst(c.x,c.y,C.ember,5)}
     if(c.z<=0){   // touchdown
       const wet=isWet(c.x,c.y),sp=Math.hypot(c.vx,c.vy);c.z=0;crashDamage(c.x,c.y,c.big,c.r);if(c.pl){SHK=Math.max(SHK,10);FLASH=Math.max(FLASH,.25)}
       if(!c.nb&&(c.ty=='heli'||c.ty=='chinook')){c.nb=1;const nbl=c.ty=='chinook'?6:3;for(let i=0;i<nbl;i++){const a=c.rot+i*(6.2832/nbl)+Math.random()*.6;chunk('blade',c.x,c.y,c.vx*.5+Math.cos(a)*(120+Math.random()*80),c.vy*.5+Math.sin(a)*(120+Math.random()*80),c.ty=='chinook'?40:32,'',2.5,0,.05)}}   // rotors still turning at impact snap off
@@ -1403,12 +1404,12 @@ function stepCrashes(){
         if(c.sk&&c.bn<c.bm&&sp>90){c.bn++;c.ac=0;c.tw*=.4;c.z=.001;c.vz=.28;c.vx*=.72;c.vy*=.72;c.vr*=.6}   // skips off the surface like a stone
         else{c.wy=scroll-c.y;c.sx=c.vx;c.sy=Math.max(60,c.vy);c.gp=[{x:c.x,wy:c.wy}];c.vr*=.5;if(c.sk){c.gd=2;c.gt=0}else startSink(c)}}
       else if(c.sk){
-        burst(c.x,c.y,C.cream,12);burst(c.x,c.y,C.ink,8);burst(c.x,c.y,C.ember,10);SFX.boom(0,c.x);fx(c.x,c.y,DIRT,8,120,3,.6,1);
+        burst(c.x,c.y,C.cream,12);burst(c.x,c.y,C.ink,8);burst(c.x,c.y,C.ember,10);SFX.boom(0,c.x);fx(c.x,c.y,DIRT,fq(8),120,3,.5,1);
         if(c.bn<c.bm&&sp>90){c.bn++;c.ac=0;c.tw*=.4;c.z=.001;c.vz=.3;c.vx*=.75;c.vy*=.75;c.vr*=.7}   // first contact: it bounces
-        else{c.gd=1;c.gt=0;c.wy=scroll-c.y;c.sx=c.vx*1.1;c.sy=Math.max(80,c.vy);c.gp=[{x:c.x,wy:c.wy}];c.vr*=.6;SFX.scrape(c.x);scrap(c.x,c.y,4,160,c.sx*.5,0,SCRAP,.05)}}
+        else{c.gd=1;c.gt=0;c.wy=scroll-c.y;c.sx=c.vx*1.1;c.sy=Math.max(80,c.vy);c.gp=[{x:c.x,wy:c.wy}];c.vr*=.6;SFX.scrape(c.x);scrap(c.x,c.y,3,160,c.sx*.5,0,SCRAP,.05)}}
       else{   // no slide: it breaks up on impact, wreckage flung on along its momentum; the fuel may or may not go up
         c.dead=1;landWreck(c.w,c.x,c.y,c.rot,c.r+c.big*6,c.big?4:3);
-        burst(c.x,c.y,C.ink,8);burst(c.x,c.y,C.cream,6);fx(c.x,c.y,DIRT,10,120,3,.7,1);scrap(c.x,c.y,8+c.big*4,200,c.vx*.7,c.vy*.7,SCRAP,.05);
+        burst(c.x,c.y,C.ink,8);burst(c.x,c.y,C.cream,6);fx(c.x,c.y,DIRT,fq(10),120,3,.55,1);scrap(c.x,c.y,fq(8+c.big*4),200,c.vx*.7,c.vy*.7,SCRAP,.05);
         if(c.bx)explodeAt(c);else{burst(c.x,c.y,C.ember,10);SFX.boom(Math.min(1,c.big),c.x)}}
     }else if(c.y>H+130||c.x<-130||c.x>W+130)c.dead=1;   // fell out of sight
   }
@@ -1428,9 +1429,9 @@ function drawSkid(pts,sc,live,w){   // the furrow a crashed airframe ploughs int
   if(pts.length<2)return;
   const path=()=>{ctx.beginPath();pts.forEach((p,i)=>{const y=sc-p.wy;i?ctx.lineTo(p.x,y):ctx.moveTo(p.x,y)})};
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.strokeStyle='rgba(110,88,80,.22)';ctx.lineWidth=16;path();ctx.stroke();
-  ctx.strokeStyle='rgba(14,10,10,.5)';ctx.lineWidth=8;path();ctx.stroke();
-  const age=live?0:tt-w.t0,f=1-age/9;
+  ctx.strokeStyle='rgba(110,88,80,.14)';ctx.lineWidth=14;path();ctx.stroke();
+  ctx.strokeStyle='rgba(14,10,10,.34)';ctx.lineWidth=7;path();ctx.stroke();
+  const age=live?0:tt-w.t0,f=1-age/5;
   for(let i=0;i<pts.length;i++){const p=pts[i],y=sc-p.wy,h=w?w.v:0;
     ctx.fillStyle=(i%3?'rgba(30,24,24,.7)':'rgba(70,58,54,.6)');ctx.fillRect(p.x+(hs(i,h)-.5)*22,y+(hs(i,h+3)-.5)*8,2.4+hs(i,h+5)*2.6,2+hs(i,h+7)*2);
     if(f>0&&i%3==0)wFlame(p.x+(hs(i,h+9)-.5)*8,y,1.2+hs(i,h+11)*1.5,f*(.4+.5*Math.sin(tt*9+i)**2))}
@@ -1444,13 +1445,17 @@ function drawWake(pts,sc,fade){   // foam churned up behind a ditching aircraft,
     ctx.strokeStyle='rgba(255,246,240,'+al(.5*k*fade)+')';ctx.lineWidth=5*k+1;ctx.beginPath();ctx.moveTo(a.x,sc-a.wy);ctx.lineTo(b.x,sc-b.wy);ctx.stroke()}
   ctx.restore();
 }
-function drawCrashes(){
+function drawCrashTrails(){   // ground-level parts of a crash (skid furrow, foam wake, smoke trail): drawn under live enemies and bullets so they never hide a target
   for(const c of crashes){
     if(c.gd==1)drawSkid(c.gp,gScroll(),1);
     else if(c.gd>=2){ctx.save();clipWater(gScroll());drawWake(c.gp,gScroll(),c.gd==3?Math.max(0,1-c.gt/c.sd*1.3):1);ctx.restore()}
     const n=c.tr.length,tf=c.gd>=2?Math.max(0,1-c.gt/1.2):1;
-    for(let i=0;i<n&&tf>0;i++){const p=c.tr[i],a=(i+1)/n;   // black smoke trail: old puffs are big and thin, fresh ones dense
-      ctx.fillStyle='rgba(34,28,32,'+al(.34*a*c.fire*tf)+')';ctx.beginPath();ctx.arc(p.x+Math.sin(i*1.7+c.ph)*3,p.y,4+(1-a)*13*c.fire,0,6.2832);ctx.fill()}
+    for(let i=Math.floor(n*.3);i<n&&tf>0;i+=2){const p=c.tr[i],a=(i+1)/n;   // thin smoke trail: only every other puff, the oldest (biggest, haziest) ones skipped
+      ctx.fillStyle='rgba(34,28,32,'+al(.22*a*c.fire*tf)+')';ctx.beginPath();ctx.arc(p.x+Math.sin(i*1.7+c.ph)*3,p.y,4+(1-a)*8*c.fire,0,6.2832);ctx.fill()}
+  }
+}
+function drawCrashes(){
+  for(const c of crashes){
     if(c.gd==3){   // sinking: slick spreads, the model fades under a rising layer of water, bubbles and foam around it
       const u=Math.min(1,c.gt/c.sd),x=ix(c,'x'),y=ix(c,'y'),R=c.r+c.big*6,h=Math.floor(c.ph*100);
       ctx.save();clipWater(gScroll());slickAt(x,y,(R+10)*(1+u*1.2),(R+8)*(1+u*1.2),.34*Math.min(1,u*3));ctx.restore();
@@ -1464,8 +1469,8 @@ function drawCrashes(){
     if(c.gd==4){for(let j=0;j<5;j++){const fl=.5+.5*Math.sin(tt*19+j*2.3);wFlame(c.x+Math.sin(tt*9+j*2)*10,c.y+Math.cos(tt*7+j*1.7)*8,5+fl*4,.9)}continue}
     if(c.gd==2)continue;   // fire is out once it is in the water
     const x=ix(c,'x'),y=ix(c,'y'),k=c.fire*(.7+.3*(1-c.z)),s=c.sc*(.72+.28*Math.max(0,c.z));   // fire spreading over the airframe
-    for(let j=0;j<4;j++){const fl=.5+.5*Math.sin(tt*17+j*2.3+c.ph),ox=Math.sin(tt*13+j*2.1)*9*s,oy=Math.cos(tt*11+j*1.7)*9*s;
-      wFlame(x+ox,y+oy,(4+fl*3.5+c.r*.08)*k*s,.85)}
+    for(let j=0;j<3;j++){const fl=.5+.5*Math.sin(tt*17+j*2.3+c.ph),ox=Math.sin(tt*13+j*2.1)*8*s,oy=Math.cos(tt*11+j*1.7)*8*s;
+      wFlame(x+ox,y+oy,(3.5+fl*3+c.r*.07)*k*s,.7)}
   }
 }
 function drawChunks(){
@@ -1483,7 +1488,7 @@ function drawChunks(){
     else if(q.k=='wing'){ctx.fillStyle=q.c;ctx.strokeStyle='rgba(236,217,208,.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-q.s*.5,-q.s*.15);ctx.lineTo(q.s*.5,-q.s*.35);ctx.lineTo(q.s*.4,q.s*.25);ctx.lineTo(-q.s*.5,q.s*.2);ctx.closePath();ctx.fill();ctx.stroke()}
     else{ctx.fillStyle=q.c;ctx.fillRect(-q.s/2,-q.s/3,q.s,q.s*.66)}
     ctx.restore();
-    if(q.f&&q.ph!=3&&a>.15){ctx.globalAlpha=a;wFlame(q.x,q.y,1.6+Math.random()*2,a)}
+    if(q.f&&q.ph!=3&&a>.15){ctx.globalAlpha=a;wFlame(q.x,q.y,1.2+Math.random()*1.4,a*.8)}
   }
   ctx.globalAlpha=1;
 }
@@ -1946,7 +1951,7 @@ function drawScene(){
     ctx.strokeStyle='rgba(236,217,208,.8)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,my-10);ctx.lineTo(W,my-10);ctx.moveTo(0,my+10);ctx.lineTo(W,my+10);ctx.stroke();
     ctx.strokeStyle='rgba(236,217,208,.5)';ctx.lineWidth=1.5;ctx.setLineDash([12,10]);ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(W,my);ctx.stroke();ctx.setLineDash([]);
   }
-  drawWrecks();drawFires();
+  drawWrecks();drawFires();drawCrashTrails();
   for(const e of en)if(e.gnd)dE(e);
   for(const e of en)if(!e.gnd&&!(e.warn>0))dE(e);
   for(const e of en)if(e.hp<e.mhp){const by=e.y+(e.ofy||0)-(e.hh?e.hh+8:e.gnd?30:44),bx=e.x+(e.ofx||0)-18;ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(bx,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(bx,by,36*e.hp/e.mhp,4)}
