@@ -2359,7 +2359,7 @@ function drawScene(){
   for(const e of en)if(e.gnd)dE(e);
   drawConvoy();
   for(const e of en)if(!e.gnd&&!(e.warn>0))dE(e);
-  for(const e of en)if(e.hp<e.mhp){const by=e.y+(e.ofy||0)-(e.hh?e.hh+8:e.gnd?30:44),bx=e.x+(e.ofx||0)-18;ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(bx,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(bx,by,36*e.hp/e.mhp,4)}
+  for(const e of en)if(!e.dead&&e.hp>0&&e.hp<e.mhp){const by=e.y+(e.ofy||0)-(e.hh?e.hh+8:e.gnd?30:44),bx=e.x+(e.ofx||0)-18;ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(bx,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(bx,by,36*e.hp/e.mhp,4)}
   drawCrashes();drawPickups();
   for(const p of P)if(p.alive){let x=ix(p,'x'),y=ix(p,'y');if(co&&p.i!=co.me){const o=co.off,q=co.op||o;x+=q.x+(o.x-q.x)*alpha;y+=q.y+(o.y-q.y)*alpha}jet(x,y,p.dir,p.pal,p.g||1);
     if(p.sh>0&&(p.sh>2.5||Math.floor(tt*8)%2==0)){const k=.5+.5*Math.sin(tt*7);ctx.fillStyle='rgba(236,217,208,'+(.07+.05*k)+')';ctx.beginPath();ctx.arc(x,y,31,0,6.28);ctx.fill();ctx.strokeStyle='rgba(236,217,208,'+(.5+.2*k)+')';ctx.lineWidth=2;ctx.setLineDash([9,6]);ctx.lineDashOffset=-tt*30;ctx.stroke();ctx.setLineDash([])}}
