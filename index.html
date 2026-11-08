@@ -589,7 +589,7 @@ function jet(x,y,dir,pal,g){
 // ---------- game ----------
 function mk(i){return{i,g:1,x:W/2,y:i?110:H-110,hp:100,dir:i?1:-1,cd:0,pal:i?PAL.p2:PAL.p1,c:i?C.brick:C.cream,alive:true}}
 function reset(){seed=co?co.seed:mode=='mission'?(Math.random()*4294967296)|0:12345;P=[mk(0)];if(mode!='mission')P.push(mk(1));if(co){const b=mk(1);b.dir=-1;b.y=H-110;b.x=W/2+55;P[0].x=W/2-55;P.push(b);co.n=0;co.F=0;co.R=-1;co.S=null;co.sent=-1;co.loc=[];co.rem=[];co.h={};co.rh={};co.hq=[];co.fs=0;co.rs=0;co.mute=0;co.endReq=undefined;co.init=P.map(q=>[q.x,q.y,0]);co.gh={i:co.me,x:P[co.me].x,y:P[co.me].y};co.pv={x:P[1-co.me].x,y:P[1-co.me].y};co.off={x:0,y:0};tt=0;scroll=0;parts=[];timer=0;wid=0}   // a co-op mission starts from a clean world on both screens: the menu background keeps scrolling, so these differ between two players
-  bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];crashes=[];chunks=[];ripples=[];floats=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
+  bul=[];en=[];queue=[];pts=0;mt=0;sp=1;dq=[];lastHit=-99;dirNew();pickups=[];railS=null;RB=[];fires=[];wrecks=[];crashes=[];chunks=[];ripples=[];floats=[];dly=[];rings=[];pops=[];rb=mode=='mission'?0:1.4;state='play';SFX.ready(mode!='mission')}
 function start(m){mode=m;if(m!='online'&&!net.on&&RM&&!wait){lst='busy';pushLobby()}$('prestart').style.display=(m=='online'||co)?'none':'';$('pquit').textContent=(m=='online'||co)?'Leave match':'Main menu';score=[0,0];paused=false;pmenu.classList.remove('show');pbtn.classList.add('show');menu.classList.add('hide');renderInv([]);reset()}
 function burst(x,y,c,n){const keep=n<8?n:Math.ceil(n*(.5+FXQ*.5));for(let i=0;i<n;i++){const a=rnd()*6.28,s=rnd()*180+40,l=.5+rnd()*.5;if(i<keep&&!(co&&co.rs))parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:n<8?l:l*.8,c})}}   // during a replay the dice still roll (so both screens stay identical) but no sparks are added twice
 // gun layouts by gun count (x offsets in jet-model units). GE = y of the wing's leading edge at that x, so every barrel sits right on the airframe
@@ -913,11 +913,12 @@ function gndJet(x,y,e){   // ground units face the player; their guns track you
   ctx.restore();
 }
 function trainSeg(x,y,e){   // engine + gun carts running up the track beside you
-  if(e.brk){   // destroyed car: still coupled and rolling along, but gutted, burning and smoking
-    const r0=e.rot||0,d=WDEF[e.ty],sc0=e.sc||1,v=(e.vr||0)&3;
+  if(e.brk){   // destroyed car: still coupled and rolling on the rails, gutted, burning and smoking
+    const r0=e.rot||0,d=WDEF[e.ty],sc0=e.sc||1,v=(e.vr||0)&3,cs=Math.cos(r0),sn=Math.sin(r0);
     ctx.save();ctx.translate(x,y);ctx.rotate(r0);ctx.scale(sc0,sc0);ctx.drawImage(wSprite(e.ty,v),-d[0]/2,-d[1]/2,d[0],d[1]);ctx.restore();
-    const fl=.5+.5*Math.sin(tt*8+e.wy*.1);wFlame(x+Math.sin(e.wy)*5,y-2,1.4+fl*1.2,.55+.4*fl);
-    for(let i=0;i<2;i++){const q=(tt*.45+i/2+(e.vr||0)*.17)%1;ctx.fillStyle='rgba(44,38,42,'+al(.22*(1-q))+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.1+i*2.4)*4+q*8,y-6-q*30,4+q*9,0,6.2832);ctx.fill()}
+    const f0=e.cs===undefined?1:Math.min(1,e.cs*2+.3);
+    for(let i=0;i<2;i++){const off=(i?9:-7)+(e.ty=='trainE'?4:0),fl=.5+.5*Math.sin(tt*(8+i*2.7)+e.wy*.1+i*2);wFlame(x-sn*off,y+cs*off,(1.5+fl*1.3)*f0,(.5+.45*fl)*f0)}   // fire burning in the open roof
+    for(let i=0;i<3;i++){const q=(tt*.4+i/3+(e.vr||0)*.17)%1;ctx.fillStyle='rgba(40,35,39,'+al(.26*(1-q)*f0)+')';ctx.beginPath();ctx.arc(x+2+q*14,y-4-q*40,4+q*10,0,6.2832);ctx.fill()}   // smoke column, leaning with the wind
     return}
   const p=T(e),r=e.rot||0,eng=e.ty=='trainE',cy=eng?10:0,aim=(p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2)-r,sc=e.sc||1;
   ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.scale(sc,sc);ctx.lineCap='round';
@@ -1278,11 +1279,11 @@ function ammoBlast(e){   // an ammo cart cooks off: area damage to you and to th
 // ---------- combat ----------
 function pop(x,y,s){pops.push({x,y,s,t:1.2})}
 function killE(e){
-  if(e.brk||e.dead)return;
+  if(e.brk||e.dead)return;const n0=parts.length;
   if(e.tr){e.brk=1;e.hp=0}else e.dead=1;   // a destroyed train car stays coupled to the chain and rolls on as a burnt-out wreck
   pts+=e.pts;const air=!e.gnd&&e.ty!='kamikaze'&&mode=='mission'&&e.y>-30&&e.y<H+40&&crashes.length<CMAX;   // aircraft don't blow up in the air: they take the hit, lose control and crash
   if(air){burst(e.x,e.y,C.ember,6);burst(e.x,e.y,C.cream,5);SFX.hitE(e.x,true)}
-  else{burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);if(e.ty!='kamikaze')SFX.boom(e.oil||e.hh||e.tr?2:/^(heli|chinook|trio|dread|starfield|ship|truck|tank|bomber|cyclone)$/.test(e.ty)?1:0,e.x)}
+  else{burst(e.x,e.y,C.ember,20);burst(e.x,e.y,e.tr?C.ink:C.cream,e.tr?10:8);if(e.ty!='kamikaze')SFX.boom(e.oil||e.hh||e.tr?2:/^(heli|chinook|trio|dread|starfield|ship|truck|tank|bomber|cyclone)$/.test(e.ty)?1:0,e.x)}
   if(e.ty=='kamikaze')blast(e);   // shot-down drones still blow up
   if(e.ty=='trainB')ammoBlast(e);
   if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
@@ -1298,6 +1299,8 @@ function killE(e){
   if(e.hh){for(let i=0;i<7;i++){const bx=e.x+(rnd()-.5)*e.hw*1.6,by2=e.y+(rnd()-.5)*e.hh*1.6;burst(bx,by2,C.ember,14);burst(bx,by2,C.cream,6)}if(e.ty=='carrier')for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0){const bx=e.x+cSlotX(j),by2=e.y+cSlotY(j,e.nl);burst(bx,by2,C.ember,16);burst(bx,by2,C.cream,6)}
     pop(e.x,e.y-e.hh-12,(e.ty=='carrier'?'CARRIER +':'BATTLESHIP +')+e.pts)}
   if(e.g&&++e.g.k==e.g.n){pts+=e.g.bonus;pop(e.x,e.y-26,e.g.label+' +'+e.g.bonus)}
+  if(e.gnd)for(let i=n0;i<parts.length;i++)parts[i].sc=1;   // a ground unit's blast particles belong to the ground: they scroll with it, never float
+  if(e.ty=='radar')radarDeath(e);if(e.tr)carDeath(e);
   if(!e.tr)leaveWreck(e);   // ground units and rigs stay behind as rubble; ships sink (train cars leave theirs once the whole train has rolled to a stop)
   if(air)startCrash(e);   // aircraft don't just vanish: they spin, burn, fall and crash
 }
@@ -1572,7 +1575,25 @@ function wRig(g,R){   // collapsed offshore rig: leg stubs in the surf, tilted h
   wGlow(g,-4,0,12);
   wDebris(g,16,58,['#14171b','#2b3036','#4a3a30','#3a424a'],R);
 }
-function wTrain(g,R,eng){   // gutted rail car / locomotive: torn roof, exposed ribs, missing bogies, plating peeled off
+function wTrain(g,R,eng){   // gutted rail car, still coupled and still on its rails: intact frame and wheel sets, sooty hull, roof blown open over a burnt-out interior, ragged bent edges, couplers intact
+  const L=eng?29:26,T=eng?-37:-26,hx=12,oa=eng?-2:-17,ob=eng?25:17;   // oa..ob: where the roof has burnt away
+  wScorch(g,22,eng?44:36,.3,R);
+  for(const sy of[-1,1])for(const sx of[-1,1]){const x=sx*13,y=sy*15;g.fillStyle='#0f0c0d';g.fillRect(x-2.3,y-6.5,4.6,13);g.fillStyle='rgba(150,140,140,.28)';g.fillRect(x-2.3,y-6.5,4.6,1.5);g.fillRect(x-2.3,y+5,4.6,1.5)}   // wheel sets, all still under the car
+  g.fillStyle='#0d0a0b';g.fillRect(-1.6,T-5,3.2,5);g.fillRect(-1.6,L,3.2,5);   // couplers: it is still part of the train
+  const hull=eng?[[-hx,-27],[-6,-37],[6,-37],[hx,-27],[hx,L],[-hx,L]]:[[-hx,T],[hx,T],[hx,L],[-hx,L]];
+  wPoly(g,hull,1.2,R,'#1b1617','rgba(236,217,208,.16)');
+  g.fillStyle='#262021';g.fillRect(-hx+1,T+(eng?10:1),hx*2-2,oa-T-(eng?10:1));g.fillRect(-hx+1,ob,hx*2-2,L-ob-1);   // roof sections that survived at both ends
+  g.strokeStyle='rgba(0,0,0,.45)';g.lineWidth=.8;g.beginPath();for(let y=T+(eng?14:6);y<oa-2;y+=7){g.moveTo(-hx+1,y);g.lineTo(hx-1,y)}for(let y=ob+5;y<L-2;y+=7){g.moveTo(-hx+1,y);g.lineTo(hx-1,y)}g.stroke();   // roof seams
+  const lp=[],rp=[];for(let y=oa;y<=ob;y+=5){lp.push([-8.5+(R()-.5)*3.4,y]);rp.push([8.5+(R()-.5)*3.4,y])}   // ragged edge of the blast opening
+  g.beginPath();lp.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));for(let i=rp.length-1;i>=0;i--)g.lineTo(rp[i][0],rp[i][1]);g.closePath();g.fillStyle='#070506';g.fill();
+  g.strokeStyle='#1d1718';g.lineWidth=1.6;g.beginPath();for(let y=oa+4;y<ob-2;y+=9){g.moveTo(-8,y);g.lineTo(8,y)}g.stroke();g.lineWidth=1;g.beginPath();g.moveTo(-3.5,oa+2);g.lineTo(-3.5,ob-2);g.moveTo(3.5,oa+2);g.lineTo(3.5,ob-2);g.stroke();   // floor beams and stringers
+  g.strokeStyle='rgba(95,84,82,.85)';g.lineWidth=1.4;g.lineCap='round';
+  for(const pts of[lp,rp]){g.beginPath();pts.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.stroke()}   // bent, heat-twisted metal along the opening
+  g.strokeStyle='rgba(10,8,8,.55)';g.lineWidth=1.8;g.beginPath();for(const sx of[-1,1])for(let i=0;i<3;i++){const y=oa+3+R()*(ob-oa-6),l=3+R()*5;g.moveTo(sx*hx,y);g.lineTo(sx*(hx-l),y+(R()-.5)*3)}g.stroke();   // soot streaks climbing the sides
+  g.lineCap='butt';wGlow(g,0,(oa+ob)/2,13);
+  g.fillStyle='rgba(233,148,106,.75)';for(let i=0;i<5;i++)g.fillRect(-6+R()*12,oa+3+R()*(ob-oa-6),1.6,1.6);   // embers on the floor
+}
+function wTrainOld(g,R,eng){   // (previous look, unused)
   wScorch(g,30,eng?50:44,.5,R);
   g.save();g.rotate((R()-.5)*.16);
   g.fillStyle='#120e0f';for(const sx of[-1,1])for(const sy of[-1,1]){if(R()<.15)continue;g.fillRect(sx*13-2,sy*15-6,4,12)}
@@ -1585,7 +1606,7 @@ function wTrain(g,R,eng){   // gutted rail car / locomotive: torn roof, exposed 
   g.restore();
   wDebris(g,10,38,['#161112','#3d2c2e','#55403f','#2a2123'],R);
 }
-const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],radar:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)],trainA:[80,100,(g,R)=>wTrain(g,R,0)],trainR:[80,100,(g,R)=>wTrain(g,R,0)],trainT:[80,100,(g,R)=>wTrain(g,R,0)],trainB:[80,100,(g,R)=>wTrain(g,R,0)],trainF:[80,100,(g,R)=>wTrain(g,R,0)],trainM:[80,100,(g,R)=>wTrain(g,R,0)]};
+const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],radar:[100,100,wRadar],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)],trainA:[80,100,(g,R)=>wTrain(g,R,0)],trainR:[80,100,(g,R)=>wTrain(g,R,0)],trainT:[80,100,(g,R)=>wTrain(g,R,0)],trainB:[80,100,(g,R)=>wTrain(g,R,0)],trainF:[80,100,(g,R)=>wTrain(g,R,0)],trainM:[80,100,(g,R)=>wTrain(g,R,0)]};
 function wSprite(k,v){const key=k+v,d=WDEF[k];return WSP[key]||(WSP[key]=makeSprite(d[0],d[1],g=>d[2](g,rng(v*7919+key.length*104729+key.charCodeAt(0)*31))))}
 function wFlame(x,y,s,a){ctx.fillStyle='rgba(233,148,106,'+al(.75*a)+')';ctx.beginPath();ctx.arc(x,y,s,0,6.2832);ctx.fill();ctx.fillStyle='rgba(242,207,138,'+al(.85*a)+')';ctx.beginPath();ctx.arc(x,y-.5,s*.5,0,6.2832);ctx.fill()}
 const SK={boat:{Lb:24,Ls:16,Wd:9,dur:4.5,tau:2.5,list:.3,nf:2},ship:{Lb:54,Ls:43,Wd:15,dur:7,tau:3.5,list:.26,nf:3},battle:{Lb:88,Ls:74,Wd:17,dur:10,tau:5,list:.2,nf:4},carrier:{Lb:146,Ls:132,Wd:47,dur:14,tau:6,list:.1,nf:6}};
@@ -1611,7 +1632,7 @@ function leaveWreck(e){
   const id=++wid;
   if(e.sea){if(SK[e.ty])sinkShip(e,id);return}
   const k=e.oil?'oil':e.ty;if(!WDEF[k])return;
-  wrecks.push({k,v:Math.floor(hs(id,Math.floor(e.wy))*4),wy:e.wy,x:e.x,rot:e.tr?(e.rot||0):hs(id,7)*6.2832,sc:e.tr?(e.sc||1):0,t0:tt,r:e.r,ne:k=='oil'?4:3});
+  wrecks.push({k,v:e.tr?((e.vr||0)&3):Math.floor(hs(id,Math.floor(e.wy))*4),wy:e.wy,x:e.x,rot:e.tr?(e.rot||0):hs(id,7)*6.2832,sc:e.tr?(e.sc||1):0,t0:tt,r:e.r,ne:k=='oil'?4:3});
   if(wrecks.length>70)wrecks.shift();
 }
 function stepWrecks(){
@@ -1623,10 +1644,11 @@ function drawRubble(w,x,y){
   ctx.save();ctx.globalAlpha=wa;
   if(w.wet){const k=Math.min(1,age/1.5),sx=(26+w.r*.5)*(.6+.6*k),sy=(22+w.r*.4)*(.6+.6*k);ctx.fillStyle='rgba(18,13,17,.34)';ctx.beginPath();ctx.ellipse(x,y,sx,sy,0,0,6.2832);ctx.fill()}   // aircraft that came down in the gulf: oil slick, then it slips under
   ctx.save();ctx.translate(x,y);ctx.rotate(w.rot);if(w.sc)ctx.scale(w.sc,w.sc);ctx.drawImage(wSprite(w.k,w.v),-d[0]/2,-d[1]/2,d[0],d[1]);ctx.restore();
-  const life=w.wet?4:w.k=='oil'||w.k=='chook'?18:w.k=='tank'||w.k=='truck'||w.k=='heli'?13:9,f=1-age/life;   // embers die down and the smoke thins, then only the rubble is left
+  const life=w.wet?4:w.k=='oil'||w.k=='chook'||w.k=='radar'?18:w.k=='tank'||w.k=='truck'||w.k=='heli'?13:9,f=1-age/life;   // embers die down and the smoke thins, then only the rubble is left
   if(f>0){
     const s=w.sc||1;
-    if(f>.25)for(let i=0;i<Math.min(w.ne,2);i++){const a=hs(w.v+i*3,3)*6.2832,r=hs(w.v+i*3,5)*w.r*.55,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x+Math.cos(a)*r,y+Math.sin(a)*r,(1.1+fl*1.2)*s,f*.8*(.35+.65*fl))}
+    if(f>.25&&w.k.startsWith('train'))for(let i=0;i<2;i++){const off=i?9:-7,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x-Math.sin(w.rot)*off,y+Math.cos(w.rot)*off,(1.2+fl*1.2)*s,f*.8*(.35+.65*fl))}
+    else if(f>.25)for(let i=0;i<Math.min(w.ne,2);i++){const a=hs(w.v+i*3,3)*6.2832,r=hs(w.v+i*3,5)*w.r*.55,fl=.5+.5*Math.sin(tt*(7+i*2.3)+i*1.9);wFlame(x+Math.cos(a)*r,y+Math.sin(a)*r,(1.1+fl*1.2)*s,f*.8*(.35+.65*fl))}
     for(let i=0;i<2;i++){const p=(age*.35+i/2+w.v*.17)%1;ctx.fillStyle='rgba(44,38,42,'+al(.18*f*(1-p))+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.1+i*2.4+w.v)*5+p*10,y-6-p*34,(4+p*(w.k=='oil'||w.k=='chook'?13:9))*s,0,6.2832);ctx.fill()}
   }
   ctx.restore();
@@ -1725,7 +1747,7 @@ const isWet=(x,y)=>{const wy=scroll-y;return x>landL(wy)+14&&x<landR(wy)-14};
 const inWater=(x,y,m)=>{const wy=scroll-y;m=m||0;return x>landL(wy)+m&&x<landR(wy)-m};   // exact shoreline test: spray and rings must never reach past it
 const SCRL=()=>(state=='menu'?50:90);
 // ----- cosmetic effects (never touch the game's random numbers, skipped while a co-op rollback replays old frames) -----
-function fx(x,y,c,n,sp,dg,l,w){if(co&&co.rs)return;if(parts.length>400)return;for(let i=0;i<n;i++){const a=Math.random()*6.2832,v=sp*(.3+Math.random()*.9);parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:(l||.5)*(.6+Math.random()*.6),c,dg:dg||0,w:w||0})}}
+function fx(x,y,c,n,sp,dg,l,w,sc){if(co&&co.rs)return;if(parts.length>400)return;for(let i=0;i<n;i++){const a=Math.random()*6.2832,v=sp*(.3+Math.random()*.9);parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:(l||.5)*(.6+Math.random()*.6),c,dg:dg||0,w:w||0,sc:sc||0})}}
 function ripple(x,y,R,L,d){if(co&&co.rs)return;if(ripples.length>40)ripples.shift();ripples.push({x,wy:scroll-y,t:-(d||0),R,L})}
 function splashAt(x,y,k,vx,vy){   // impact splash: energy scales with speed, a crown thrown outwards plus a jet thrown forward along the travel direction
   SFX.splash(x,k>1.2);
@@ -1777,6 +1799,61 @@ function drawFloats(sc){
     ctx.restore();
   }
 }
+// ----- delayed cosmetic effects (secondary blasts, steam): purely visual, never touch the simulation's random numbers, skipped during a co-op rewind -----
+let dly=[];
+function later(t,fn){if(co&&co.rs)return;if(dly.length>60)dly.shift();dly.push({t,fn})}
+function stepDly(){for(const q of dly){q.t-=DT;if(q.t<=0){q.d=1;try{q.fn()}catch(e){}}}dly=dly.filter(q=>!q.d)}
+function fb(x,y,k){   // a secondary fireball: flash, flying embers, a ring and a dark smoke puff
+  fx(x,y,'rgba(255,214,150,.95)',fq(8),90*k,2,.25,0,1);fx(x,y,'rgba(233,148,106,.9)',fq(16),170*k,2,.55,0,1);fx(x,y,'rgba(60,54,58,.6)',fq(8),60*k,1,1,0,1);   // last arg: the sparks ride with the scrolling ground instead of floating
+  rings.push({x,y,t:0,s:.3+.25*k});SFX.boom(k>.95?1:0,x)}
+const SCR_R=['#4b5058','#8a8f98','#2b2f35','#c9ccd1','#5f6369'],SCR_T=['#161112','#2a2425','#3b3231','#4a3d36','#1e1a1b'];
+function radarDeath(e){   // the dish station goes up in stages: main blast, the lattice antenna is thrown clear, then the fuel tank, shelter and generator cook off one after another
+  const wy=e.wy,x=e.x;SHK=Math.max(SHK,4);
+  scrap(x,e.y,fq(12),230,0,25,SCR_R,.3);
+  chunk('wing',x,e.y,(Math.random()-.5)*190,-60-Math.random()*90,34,'#b9bdc3',3.5,1,.35);   // the long antenna reflector tumbles away
+  chunk('wing',x,e.y,(Math.random()-.5)*160,-30+Math.random()*80,22,'#9a9ea6',3,1,.3);
+  later(.2,()=>fb(x+19,scroll-(wy+16),1));          // fuel tank
+  later(.45,()=>fb(x-11,scroll-(wy-13),.85));       // operations shelter
+  later(.75,()=>fb(x+14,scroll-(wy-14),.7));        // generator
+  later(1.1,()=>{fx(x,scroll-wy,'rgba(70,62,66,.5)',fq(10),40,1,1.6,0,1)});
+}
+function carDeath(e){   // a rail car is gutted: one fireball, the roof sheets are blown off and land beside the line, the locomotive vents steam; when the last car dies the rest cook off front to back
+  const x=e.x,eng=e.ty=='trainE';SHK=Math.max(SHK,eng?6:3);
+  later(.04,()=>fb(e.x,scroll-e.wy,eng?1:.8));
+  later(.04,()=>{   // debris: heavy pieces are thrown sideways in short arcs, tumble, land, bounce once, slide to a stop and lie by the track
+    const np=eng?2:3,ey=scroll-e.wy;
+    for(let i=0;i<np;i++){const sx=i%2?1:-1,sp=75+Math.random()*60;   // roof sheets
+      chunk('panel',e.x+sx*5,ey+(Math.random()-.5)*26,sx*sp,(Math.random()-.5)*36,15+Math.random()*8,'#2a2425',3.2,0,.28);
+      const c=chunks[chunks.length-1];if(c&&c.k=='panel'){c.vz=.42+Math.random()*.25;c.vr=sx*(3+Math.random()*4);c.keep=1}}
+    for(let i=0;i<(eng?6:4);i++){const a=Math.random()*6.2832,v=60+Math.random()*90;   // twisted plates and fragments
+      chunk(Math.random()<.35?'wing':'plate',e.x,ey+(Math.random()-.5)*20,Math.cos(a)*v,Math.sin(a)*v*.6,4+Math.random()*6,SCR_T[i%5],3,Math.random()<.3,.2);
+      const c=chunks[chunks.length-1];if(c)c.vz=.3+Math.random()*.35}
+    fx(e.x,ey,'rgba(150,128,118,.45)',fq(8),60,2.5,.8,0,1);   // dust kicked up where they land
+  });
+  later(.2,()=>fx(e.x,scroll-e.wy,'rgba(50,44,48,.55)',fq(8),45,1,1.6,0,1));   // black smoke rolling out of the opening
+  if(eng)for(let i=0;i<4;i++)later(.1+i*.22,()=>fx(e.x,scroll-e.wy,'rgba(244,240,236,.7)',fq(10),70,1.5,1.3,0,1));   // boiler steam
+  if(!en.some(o=>o.tr&&!o.brk&&!o.dead)){   // that was the last live car
+    SHK=Math.max(SHK,8);FLASH=Math.max(FLASH,.18);
+    en.filter(o=>o.tr&&o!==e).sort((a,b)=>b.wy-a.wy).forEach((o,i)=>later(.35+i*.2,()=>{fb(o.x,scroll-o.wy,.75);SHK=Math.max(SHK,3)}));   // cook-off runs from the front of the train to the back
+  }
+}
+function wRadar(g,R){   // wrecked radar site: shattered pad, collapsed shelter, tank crater, bent tower stump, fallen lattice antenna, fence stubs
+  wScorch(g,46,46,.62,R);
+  for(let i=0;i<6;i++){g.save();g.translate((R()-.5)*62,(R()-.5)*62);g.rotate(R()*6.28);wPoly(g,[[-9,-6],[8,-7],[10,6],[-7,7]],3,R,'rgba(100,103,109,.75)','rgba(0,0,0,.35)');g.restore()}
+  g.save();g.translate(-12,13);g.rotate((R()-.5)*.5);
+  wPoly(g,[[-13,-8],[13,-9],[12,9],[-12,8]],4,R,'#34373d','rgba(236,217,208,.15)');wPoly(g,[[-8,-4],[7,-5],[8,4],[-7,4]],2,R,'#0a0808');
+  g.strokeStyle='#15171a';g.lineWidth=1.3;for(let i=-9;i<=9;i+=6){g.beginPath();g.moveTo(i,-8);g.lineTo(i+(R()-.5)*4,8);g.stroke()}
+  wGlow(g,0,0,11);g.restore();
+  wBlob(g,19,-16,7.5,7.5,'#0a0808',R);g.strokeStyle='rgba(120,124,130,.7)';g.lineWidth=2;g.beginPath();g.arc(19,-16,8,.3,5.2);g.stroke();wGlow(g,19,-16,10);   // ruptured fuel tank
+  wPoly(g,[[8,10],[20,9],[21,19],[9,20]],3,R,'#241f1b','rgba(236,217,208,.12)');wGlow(g,14,14,7);   // burnt generator shed
+  g.strokeStyle='#15181c';g.lineWidth=2.4;g.lineCap='round';for(const c of[[-9,-15],[9,-15],[-9,3],[9,3]]){const a=R()*6.28,l=3+R()*7;g.beginPath();g.moveTo(c[0],c[1]);g.lineTo(c[0]+Math.cos(a)*l,c[1]+Math.sin(a)*l);g.stroke();g.fillStyle='#0d0f12';g.beginPath();g.arc(c[0],c[1],2.6,0,6.28);g.fill()}   // tower leg stubs
+  wBlob(g,0,-6,8,8,'#0a0808',R);wGlow(g,0,-6,10);
+  const lat=len=>{wPoly(g,[[-len,-3],[len,-3.5],[len,3],[-len,3.5]],1.5,R,'#a9adb3','rgba(40,44,50,.7)');g.strokeStyle='rgba(60,64,72,.8)';g.lineWidth=.7;g.beginPath();for(let lx=-len;lx<len-4;lx+=4){g.moveTo(lx,-3);g.lineTo(lx+4,3);g.moveTo(lx+4,-3);g.lineTo(lx,3)}g.stroke()};
+  g.save();g.translate(-6+(R()-.5)*14,-24+R()*8);g.rotate((R()-.5)*1.2);lat(17);g.restore();   // the reflector, snapped in two
+  g.save();g.translate(14+(R()-.5)*8,10+R()*14);g.rotate(R()*6.28);lat(10);g.restore();
+  g.strokeStyle='rgba(200,194,188,.55)';g.lineWidth=1;g.setLineDash([2,2]);for(let i=0;i<5;i++){const a=R()*6.28,d=34+R()*10,l=6+R()*10,x=Math.cos(a)*d,y=Math.sin(a)*d;g.beginPath();g.moveTo(x,y);g.lineTo(x+(R()-.5)*l*2,y+(R()-.5)*l*2);g.stroke()}g.setLineDash([]);   // fence stubs
+  wDebris(g,18,44,['#161718','#4b5058','#8a8f98','#2b2f35','#6a5557'],R);
+}
 function stepChunks(){
   for(const q of chunks){
     if(q.k=='pilot'){q.l-=DT;q.x+=q.vx*DT;q.y+=q.vy*DT+SCRL()*DT*.2;q.vx*=1-.8*DT;q.vy*=1-.8*DT;   // ejection seat: a rocket burst up, then a parachute drifts the pilot down on the wind
@@ -1787,10 +1864,10 @@ function stepChunks(){
     if(q.ph==0){
       q.vz-=2.6*DT;q.z+=q.vz*DT;q.x+=q.vx*DT;q.y+=q.vy*DT;q.vx*=1-.4*DT;q.vy*=1-.4*DT;
       if(q.z<=0){q.z=0;
-        if(isWet(q.x,q.y)&&(q.k=='plate'||q.k=='wing')){floatPiece(q.x,q.y,q.k,q.s,q.c||'#2b1a1e',q.vx*.12,q.vy*.12,q.rot,q.vr*.15);q.l=0;fx(q.x,q.y,WATER,5,60,3,.5,1);ripple(q.x,q.y,16,.9)}
+        if(isWet(q.x,q.y)&&(q.k=='plate'||q.k=='wing'||q.k=='panel')){floatPiece(q.x,q.y,q.k=='panel'?'plate':q.k,q.k=='panel'?q.s*.45:q.s,q.c||'#2b1a1e',q.vx*.12,q.vy*.12,q.rot,q.vr*.15);q.l=0;fx(q.x,q.y,WATER,5,60,3,.5,1);ripple(q.x,q.y,16,.9)}
         else if(isWet(q.x,q.y)){q.ph=3;q.wy=scroll-q.y;q.l=Math.min(q.l,2);q.sx=q.vx*.2;q.sy=q.vy*.2;q.vr*=.3;fx(q.x,q.y,WATER,5,60,3,.5,1);ripple(q.x,q.y,16,.9)}
         else if(q.bn<1&&Math.hypot(q.vx,q.vy)>80){q.bn++;q.vz=.28;q.vx*=.5;q.vy*=.5;q.vr*=.6;fx(q.x,q.y,DIRT,3,40,3,.4,1)}
-        else{q.ph=1;q.wy=scroll-q.y;q.sx=q.vx;q.sy=q.vy;q.l=Math.min(Math.max(q.l,2.5),3.5)}}
+        else{q.ph=1;q.wy=scroll-q.y;q.sx=q.vx;q.sy=q.vy;q.l=q.keep?10:Math.min(Math.max(q.l,2.5),3.5)}}
     }else{const d=q.ph==3?1.5:3.2;q.sx*=1-d*DT;q.sy*=1-d*DT;q.x+=q.sx*DT;q.wy-=q.sy*DT;q.y=scroll-q.wy;q.vr*=1-3*DT}   // sliding in the world frame: the ground scrolls past
   }
   chunks=chunks.filter(q=>q.l>0&&q.y<H+60);
@@ -1960,6 +2037,7 @@ function drawChunks(){
       ctx.fillStyle='#ecd9d0';ctx.beginPath();ctx.arc(q.x,q.y-lift+3,2.4,0,6.2832);ctx.fill();ctx.fillStyle='#4f2a2e';ctx.fillRect(q.x-1.8,q.y-lift+4.5,3.6,3.4);
       ctx.globalAlpha=1}
     else if(q.k=='blade'){ctx.strokeStyle='rgba(236,217,208,.85)';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-q.s/2,0);ctx.lineTo(q.s/2,0);ctx.stroke()}
+    else if(q.k=='panel'){ctx.fillStyle=q.c;ctx.strokeStyle='rgba(236,217,208,.35)';ctx.lineWidth=.8;ctx.fillRect(-q.s/2,-q.s*.14,q.s,q.s*.28);ctx.strokeRect(-q.s/2,-q.s*.14,q.s,q.s*.28)}
     else if(q.k=='wing'){ctx.fillStyle=q.c;ctx.strokeStyle='rgba(236,217,208,.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-q.s*.5,-q.s*.15);ctx.lineTo(q.s*.5,-q.s*.35);ctx.lineTo(q.s*.4,q.s*.25);ctx.lineTo(-q.s*.5,q.s*.2);ctx.closePath();ctx.fill();ctx.stroke()}
     else{ctx.fillStyle=q.c;ctx.fillRect(-q.s/2,-q.s/3,q.s,q.s*.66)}
     ctx.restore();
@@ -2257,7 +2335,7 @@ function mission(){
     p=tgt(e);e.age+=DT;const ty=e.ty;   // cargo hunters go for the ship, not for you
     if(e.tr){
       let f=1;
-      if(e.brk&&!trAlive){if(e.cs===undefined)e.cs=1;e.cs=Math.max(0,e.cs-DT/1.6);f=e.cs}   // whole train destroyed: the wrecks coast to a stop and become rubble
+      if(e.brk&&!trAlive){if(e.cs===undefined)e.cs=1;e.cs=Math.max(0,e.cs-DT/2.6);f=e.cs*e.cs*(3-2*e.cs)}   // whole train destroyed: the wrecks coast to a stop and become rubble
       e.wy+=tv*f*DT;e.y=scroll-e.wy;e.x=railX(e.wy);e.rot=Math.atan2(railX(e.wy+8)-railX(e.wy-8),16);
       if(e.brk&&!trAlive&&e.cs<=0){leaveWreck(e);e.dead=1}
       if(e.y<-120)e.dead=1;
@@ -2362,12 +2440,12 @@ function step(){
   if(paused)return;
   if(co&&state!='menu'&&!coGate())return false;
   tt+=DT;scroll+=(state=='menu'?50:90)*DT;
-  if(!(co&&co.rs)){for(const q of parts){if(q.dg){const k=1-q.dg*DT;q.vx*=k;q.vy*=k}q.x+=q.vx*DT;q.y+=q.vy*DT;q.l-=DT;
+  if(!(co&&co.rs)){for(const q of parts){if(q.dg){const k=1-q.dg*DT;q.vx*=k;q.vy*=k}q.x+=q.vx*DT;q.y+=q.vy*DT;q.l-=DT;if(q.sc)q.y+=SCRL()*DT;   // ground-bound sparks and smoke scroll with the terrain
     if(q.w){q.y+=SCRL()*DT;   // water rides with the scrolling world, not the screen
       if(q.g){q.vz-=420*DT;q.z+=q.vz*DT;if(q.z<=0){q.l=0;if(Math.random()<.25&&inWater(q.x,q.y,6))ripple(q.x,q.y,7,.45)}}   // gravity: drops arc up and fall back
       if(q.l>0&&!inWater(q.x,q.y,1))q.l=0}}   // droplets that reach the shore are absorbed: no spray drawn over land
   parts=parts.filter(q=>q.l>0);
-  stepChunks();stepFloats();for(const q of ripples)q.t+=DT;ripples=ripples.filter(q=>q.t<q.L)}
+  stepChunks();stepDly();stepFloats();for(const q of ripples)q.t+=DT;ripples=ripples.filter(q=>q.t<q.L)}
   for(const q of pops){q.y-=28*DT;q.t-=DT}pops=pops.filter(q=>q.t>0);
   if(state=='menu')return;
   if(mode=='online')netStep();
