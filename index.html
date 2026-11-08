@@ -306,7 +306,7 @@ const SFX=(()=>{
     if(!can()||!ok('es',.03))return;
     const pn=pan(x),r=rj(.12);
     if(ty=='starfield'){if(!ok('star',.07))return;noise({t:.03,v:.03,ft:'bandpass',f0:1800*r,q:1,a:.001,pan:pn});return}
-    const heavy=ty=='dread'||ty=='battle'||ty=='carrier'||ty=='chinook'||ty=='trainE'||ty=='a10'||ty=='ship';
+    const heavy=ty=='dread'||ty=='battle'||ty=='carrier'||ty=='chinook'||ty=='trainE'||ty=='trainA'||ty=='a10'||ty=='ship';
     if(heavy){noise({t:.07,v:.1,ft:'bandpass',f0:1300*r,f1:500,a:.001,pan:pn});noise({t:.24,v:.15,ft:'lowpass',f0:1200,f1:180,a:.002,pan:pn,wet:.45});tone({f:92*r,f2:36,t:.22,type:'sine',v:.22,a:.002,pan:pn})}
     else{noise({t:.06,v:.07,ft:'bandpass',f0:1700*r,f1:700,q:.8,a:.001,pan:pn});noise({t:.12,v:.06,ft:'lowpass',f0:1500,f1:300,a:.002,pan:pn});tone({f:210*r,f2:90,t:.08,type:'sine',v:.06,a:.001,pan:pn})}
   }
@@ -766,7 +766,8 @@ function droneJet(x,y,e){   // small dart-shaped suicide drone, nose toward its 
   ctx.restore();
 }
 const CL=130,CW=46,CM=[[-43,CL-40],[43,CL-40],[-43,-CL+48],[43,-CL+48]];   // carrier half-length, half-width, and its four deck gun mounts
-const GHP=90;   // hit points of each carrier deck gun
+const PARK_HP=120;   // hit points of each parked striker on the deck (a launched striker is a normal one)
+const GHP=220;   // hit points of each carrier deck gun
 function killGun(e,j){const bx=e.x+CM[j][0],by=e.y+CM[j][1];e.gh[j]=0;pts+=200;SFX.boom(1,bx);burst(bx,by,C.ember,22);burst(bx,by,C.cream,10);burst(bx,by,C.ink,8);rings.push({x:bx,y:by,t:0,s:.45});
   pop(bx,by-22,e.gh.every(v=>v<=0)?'ALL GUNS DOWN +200':'DECK GUN +200')}
 const cSlotX=j=>j%2?11:-13,cSlotY=(j,n)=>-CL+38+(n-1-j)*28;   // parking slots on the flight deck (jet 0 is nearest the bow and launches first)
@@ -817,7 +818,8 @@ function bigShip(x,y,e){   // battleship and aircraft carrier: bow toward the pl
     const ra=e.age*2.6;ctx.strokeStyle='#cfd3d6';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(Wd-11-Math.cos(ra)*8,-16-Math.sin(ra)*4);ctx.lineTo(Wd-11+Math.cos(ra)*8,-16+Math.sin(ra)*4);ctx.stroke();
     ctx.fillStyle='#ffcf4a';ctx.beginPath();ctx.arc(Wd-11,-16,1.8,0,6.28);ctx.fill();
     // strikers waiting on the deck, then taxiing down the lane and lifting off the bow
-    for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0)deckJet(cSlotX(j),cSlotY(j,e.nl),.6,0,0);
+    for(let j=e.ln;j<e.nl;j++)if(e.pk[j]>0){const jx=cSlotX(j),jy=cSlotY(j,e.nl);deckJet(jx,jy,.6,0,0);
+      if(e.pk[j]<PARK_HP&&!e.wreck){const f=Math.max(0,e.pk[j]/PARK_HP);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(jx-9,jy-26,18,3);ctx.fillStyle=f>.5?'#8fd16a':f>.25?'#e8c24a':'#e0573f';ctx.fillRect(jx-9,jy-26,18*f,3)}}
     if(e.lau){const q=e.lau,u=Math.max(0,(q.t-.5)/q.T),k=Math.min(1,u*2.4),sx=cSlotX(q.i)*(1-k*k*(3-2*k)),py=q.sy0+(CL+8-q.sy0)*u*u,lf=Math.pow(Math.max(0,(u-.45)/.55),1.5);
       deckJet(sx,py,.6+.3*lf,lf,q.t>.2?6+26*u:0)}
     for(let ci=0;ci<4;ci++){const m=CM[ci],gx=m[0],gy=m[1],a=Math.atan2(p.y-(y+gy),p.x-(x+gx)),gv=e.gh?e.gh[ci]:GHP;
@@ -892,8 +894,25 @@ function trainSeg(x,y,e){   // engine + gun carts running up the track beside yo
     ctx.fillStyle='#5c4b4c';ctx.fillRect(-9,-23,18,46);
     ctx.fillStyle='rgba(24,18,19,.35)';for(let i=-18;i<=18;i+=9)ctx.fillRect(-9,i,18,1.5);
   }
-  ctx.fillStyle='#231a1b';ctx.beginPath();ctx.arc(0,cy,7,0,6.28);ctx.fill();
-  ctx.strokeStyle='#231a1b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(Math.cos(aim)*15,cy+Math.sin(aim)*15);ctx.stroke();
+  const ty=e.ty;
+  if(ty=='trainR'){   // rocket cart: two pods, glowing tips
+    ctx.fillStyle='#2b2224';ctx.fillRect(-10,-17,8,34);ctx.fillRect(2,-17,8,34);
+    ctx.fillStyle='#e9946a';for(const px of[-6,6])for(const py of[-14,-7,0,7,14]){ctx.beginPath();ctx.arc(px,py,1.6,0,6.28);ctx.fill()}
+  }else if(ty=='trainB'){   // ammo cart: hazard stripes and a hot, swollen tank
+    ctx.fillStyle='#6d4a2e';ctx.fillRect(-9,-23,18,46);
+    ctx.fillStyle='#e9c46a';for(let i=-22;i<22;i+=12){ctx.beginPath();ctx.moveTo(-9,i);ctx.lineTo(9,i+6);ctx.lineTo(9,i+10);ctx.lineTo(-9,i+4);ctx.fill()}
+    ctx.fillStyle='#2a1c1a';ctx.beginPath();ctx.arc(0,0,8,0,6.28);ctx.fill();
+    ctx.fillStyle='rgba(233,148,106,'+(.5+.35*Math.sin(tt*6+e.wy))+')';ctx.beginPath();ctx.arc(0,0,4.5,0,6.28);ctx.fill();
+  }else if(ty=='trainT'){   // twin-gun cart: two small turrets
+    for(const tx of[-6,6]){ctx.fillStyle='#231a1b';ctx.beginPath();ctx.arc(tx,0,5,0,6.28);ctx.fill();ctx.strokeStyle='#231a1b';ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(tx,0);ctx.lineTo(tx+Math.cos(aim)*13,Math.sin(aim)*13);ctx.stroke()}
+  }else{
+    if(ty=='trainA'){   // armoured cart: thick plating, riveted, one heavy gun
+      ctx.fillStyle='#6a5557';ctx.fillRect(-11,-25,22,50);ctx.strokeStyle='rgba(233,148,106,.8)';ctx.lineWidth=2;ctx.strokeRect(-11,-25,22,50);
+      ctx.fillStyle='rgba(24,18,19,.5)';for(const rx of[-8,8])for(const ry of[-20,-8,8,20]){ctx.beginPath();ctx.arc(rx,ry,1.4,0,6.28);ctx.fill()}
+    }
+    ctx.fillStyle='#231a1b';ctx.beginPath();ctx.arc(0,cy,7,0,6.28);ctx.fill();
+    ctx.strokeStyle='#231a1b';ctx.lineWidth=ty=='trainA'?4.6:3;ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(Math.cos(aim)*(ty=='trainA'?18:15),cy+Math.sin(aim)*(ty=='trainA'?18:15));ctx.stroke();
+  }
   ctx.strokeStyle='rgba(236,217,208,.3)';ctx.lineWidth=1;ctx.strokeRect(-12,-26,24,52);
   ctx.restore();
 }
@@ -926,7 +945,7 @@ function ground(ty,sd,off){   // ground units appear on the desert and drive tow
 const SD={boat:{hp:30,r:16,pts:200,v:42},ship:{hp:100,r:26,pts:500,v:12},battle:{hp:260,r:36,pts:300,v:10,hw:30,hh:72},carrier:{hp:1500,r:50,pts:2500,v:0,hw:48,hh:146}};
 function sea(ty,off){   // boats and ships sail down the gulf; the battleship and carrier are big and use a long hit box
   const d=SD[ty],NL=ty=='carrier'?3+Math.floor(rnd()*3):0,big=ty=='battle'||ty=='carrier',wy=scroll+50+(off||0),ratio=big?.4+rnd()*.2:.2+rnd()*.6;
-  if(ty=='carrier')SFX.horn('ship');  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:ty=='carrier'?-170:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,hw:d.hw,hh:d.hh,nl:NL,gh:ty=='carrier'?[GHP,GHP,GHP,GHP]:null,pk:Array(NL).fill(FT.striker.hp),ln:0,lt:7,lau:null,rc:0,ph:0,n:0,alt:0});
+  if(ty=='carrier')SFX.horn('ship');  en.push({ty,gnd:1,sea:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:ty=='carrier'?-170:-50,age:0,cd:1+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,v:d.v,hw:d.hw,hh:d.hh,nl:NL,gh:ty=='carrier'?[GHP,GHP,GHP,GHP]:null,pk:Array(NL).fill(PARK_HP),ln:0,lt:7,lau:null,rc:0,ph:0,n:0,alt:0});
 }
 function oilField(){   // two or three oil rigs sit in the gulf; blowing one up can set off its neighbours
   const n=2+(rnd()<.5?1:0),r0=.3+rnd()*.4;
@@ -979,10 +998,21 @@ function starfield(slot,n){   // star plane glides in toward a spot near the cen
   n=n||1;SFX.whoosh(W/2);const tx=Math.max(70,Math.min(W-70,n>1?W/2+((slot||0)-(n-1)/2)*(n==3?140:170)+(rnd()-.5)*30:W/2+(rnd()-.5)*170)),gy=H*.26+rnd()*H*.16,x0=Math.max(60,Math.min(W-60,tx+(rnd()-.5)*220));
   en.push({ty:'starfield',x:x0,y:-60,x0,y0:-60,tx,gy,u:0,st:0,t1:0,ang:rnd()*6.28,w:2,vx:0,age:0,cd:0,n:0,dir:0,hp:70,mhp:70,r:24,pts:500,rc:0,ph:0,alt:0});
 }
+const TRAIN_K={trainE:{hp:130,pts:600},trainC:{hp:70,pts:300},trainA:{hp:70*2.3,pts:420},trainR:{hp:70*.9,pts:360},trainT:{hp:70*1.15,pts:380},trainB:{hp:70*.75,pts:250}};   // base hit points / points per kind of car
 function spawnTrain(){SFX.horn('train');   // appears from behind, runs up the track beside you, then keeps pace and stays until destroyed
-  const tier=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),sc=1+tier*.1,n=Math.min(3+tier,8),gap=58*sc,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};   // later trains: bigger, longer, tougher, more guns
-  for(let i=0;i<=n;i++){const eng=i==0,wy=wy0-i*gap,hp=Math.round((eng?130:70)*(1+tier*.4));
-    en.push({ty:eng?'trainE':'trainC',gnd:1,tr:1,tier,sc,wy,x:railX(wy),y:H+70+i*gap,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:(eng?23:21)*sc,pts:(eng?600:300)+tier*100,g,rc:0,ph:0,n:0,alt:0})}
+  const lv=D.trainN||0;D.trainN=lv+1;D.trainSt=D.stage;   // the first train is the plain one; every later train is stronger, longer, and mixes in new kinds of car
+  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(tt0,lv+1)),sc=1+tier*.1,n=Math.min(3+tier,8),gap=58*sc,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
+  const kinds=['trainC'];if(tier>=2)kinds.push('trainA','trainR');if(tier>=3)kinds.push('trainT','trainB');   // armoured shell cart + rocket-fan cart from the 2nd train on, twin-gun + exploding ammo cart after that
+  let last='',deck=[];
+  for(let i=0;i<=n;i++){const eng=i==0;let ty='trainE';
+    if(!eng){if(kinds.length>1){if(!deck.length)deck=kinds.slice().sort(()=>rnd()-.5);ty=deck.pop();if(ty==last&&deck.length)deck.unshift(ty),ty=deck.pop();last=ty}else ty='trainC'}
+    const K=TRAIN_K[ty],wy=wy0-i*gap,hp=Math.round(K.hp*(1+tier*.4));
+    en.push({ty,gnd:1,tr:1,tier,sc,wy,x:railX(wy),y:H+70+i*gap,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:(eng?23:21)*sc,pts:K.pts+tier*100,g,rc:0,ph:0,n:0,alt:0})}
+}
+function ammoBlast(e){   // an ammo cart cooks off: area damage to you and to the cars around it
+  SFX.blast(e.x);const R=95;rings.push({x:e.x,y:e.y,t:0});burst(e.x,e.y,C.ember,34);burst(e.x,e.y,C.cream,14);
+  for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(24*(1-d/R*.5)),p.x,p.y)}
+  for(const o of en)if(!o.dead&&o!==e&&o.tr&&Math.hypot(o.x-e.x,o.y-e.y)<R){o.hp-=60;burst(o.x,o.y,C.ember,8);if(o.hp<=0)killE(o)}
 }
 
 // ---------- combat ----------
@@ -992,6 +1022,7 @@ function killE(e){
   if(air){burst(e.x,e.y,C.ember,6);burst(e.x,e.y,C.cream,5);SFX.hitE(e.x,true)}
   else{burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);if(e.ty!='kamikaze')SFX.boom(e.oil||e.hh||e.tr?2:/^(heli|chinook|trio|dread|starfield|ship|truck|tank)$/.test(e.ty)?1:0,e.x)}
   if(e.ty=='kamikaze')blast(e);   // shot-down drones still blow up
+  if(e.ty=='trainB')ammoBlast(e);
   if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
   if(e.ty=='cargo'){pop(e.x,e.y-26,'CARGO +'+e.pts);cargoLoot(e)}
   if(e.oil){   // oil rig explodes: area damage now, then the slick burns for a while
@@ -1030,6 +1061,10 @@ function fireN(e,p){
   else if(t=='carrier'){let k=0;while(k<4&&e.gh&&e.gh[e.n]<=0){e.n=(e.n+1)%4;k++}if(k>=4){e.cd=1.2;return}   // skip guns that were shot off; with none left it only launches strikers
     const m=CM[e.n];shot(e,Math.atan2(p.y-(e.y+m[1]),p.x-(e.x+m[0])),205,8,m[0],m[1]);e.n=(e.n+1)%4;e.cd=e.n%2?.3:1.9}   // carrier: bow pair fires left-right, then the stern pair
   else if(t=='trainC'){const k=e.tier||0;shot(e,a,200+k*8,8+(k>1?1:0),0,0);if(k>=2)shot(e,a+.14,200+k*8,8,0,0);if(k>=4)shot(e,a-.14,200+k*8,8,0,0);e.cd=Math.max(1.2,2.6+rnd()*.8-k*.3)}   // cart guns: aimed, more barrels as the train is upgraded
+  else if(t=='trainA'){const k=e.tier||0;shot(e,a,150+k*6,11,0,0);e.cd=3.1+rnd()*.6}   // armoured cart: slow, heavy shell
+  else if(t=='trainR'){const k=e.tier||0,m=2+(k>=4?1:0);for(let i=-m;i<=m;i++)shot(e,a+i*.28,165+k*6,8,0,0);e.cd=3.3+rnd()*.6}   // rocket cart: a wide fan of shots
+  else if(t=='trainT'){const k=e.tier||0;shot(e,a-.04,210+k*6,8,-9,0);shot(e,a+.04,210+k*6,8,9,0);e.n=(e.n+1)%(k>=4?4:3);e.cd=e.n?.2:2.2}   // twin-gun cart: quick double bursts
+  else if(t=='trainB'){e.cd=99}   // ammo cart: no guns, just a bomb waiting to go off
   else{const k=e.tier||0,m=1+Math.min(2,Math.ceil(k/2));for(let i=-m;i<=m;i++)shot(e,a+i*.24,175+k*8,8+(k>2?1:0),0,0);e.cd=Math.max(1.8,3.2-k*.25)}   // engine: fan grows with upgrades
 }
 // Cargo loot: pure luck. Every cargo plane rolls the same flat odds: a rare gun (only once the jet is "due" for one), a health pack, or nothing.
@@ -1203,7 +1238,7 @@ function wTrain(g,R,eng){   // gutted rail car / locomotive: torn roof, exposed 
   g.restore();
   wDebris(g,10,38,['#161112','#3d2c2e','#55403f','#2a2123'],R);
 }
-const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)]};
+const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)],trainA:[80,100,(g,R)=>wTrain(g,R,0)],trainR:[80,100,(g,R)=>wTrain(g,R,0)],trainT:[80,100,(g,R)=>wTrain(g,R,0)],trainB:[80,100,(g,R)=>wTrain(g,R,0)]};
 function wSprite(k,v){const key=k+v,d=WDEF[k];return WSP[key]||(WSP[key]=makeSprite(d[0],d[1],g=>d[2](g,rng(v*7919+key.length*104729+key.charCodeAt(0)*31))))}
 function wFlame(x,y,s,a){ctx.fillStyle='rgba(233,148,106,'+al(.75*a)+')';ctx.beginPath();ctx.arc(x,y,s,0,6.2832);ctx.fill();ctx.fillStyle='rgba(242,207,138,'+al(.85*a)+')';ctx.beginPath();ctx.arc(x,y-.5,s*.5,0,6.2832);ctx.fill()}
 const SK={boat:{Lb:24,Ls:16,Wd:9,dur:4.5,tau:2.5,list:.3,nf:2},ship:{Lb:54,Ls:43,Wd:15,dur:7,tau:3.5,list:.26,nf:3},battle:{Lb:88,Ls:74,Wd:17,dur:10,tau:5,list:.2,nf:4},carrier:{Lb:146,Ls:132,Wd:47,dur:14,tau:6,list:.1,nf:6}};
@@ -1750,21 +1785,30 @@ function pickEnc(){
   D.hist.push(c.e.id);if(D.hist.length>3)D.hist.shift();D.tags.push(c.e.tag);if(D.tags.length>3)D.tags.shift();
   D.cool=Math.max(1.3,3-.28*h)+rnd()*1.2;return true;
 }
+function droneRound(){   // drone swarm round: wave after wave of nothing but suicide drones, a new wave once the last one is mostly cleared
+  if(D.ms||D.brk>0||D.cool>0||bossA())return;
+  if(dq.length||en.filter(e=>e.ty=='kamikaze'&&!e.dead).length>1)return;
+  const n=Math.min(5,2+Math.floor(D.stage/2)),g=2+(rnd()<.5?1:0)+(D.stage>=6?1:0),it=[];
+  for(let i=0;i<g;i++)it.push(X(i*(3.2+rnd()*.8),n*.7,()=>kamikaze(n+(rnd()<.35?1:0))));
+  launch(it);D.n++;D.cool=2.2+rnd()*1.6;
+}
 function startMilestone(){
   const c=MS.filter(m=>D.stage>=m.minS&&(!m.ok||m.ok()));
   if(!c.length){D.stT-=8;return}
   let m=null;
-  if(D.stage>=3&&!D.trainDone)m=c.find(x=>x.id=='train')||null;   // the train always shows up by stage 3
+  if(D.dr)m={id:'dstorm',name:'DRONE STORM',make(){const n=Math.min(6,2+Math.floor(D.stage/2));return[0,3.5,7,10.5,14].map(d=>X(d,n*.8,()=>kamikaze(n)))}};   // drone round finale
+  else if(D.stage>=3&&!D.trainDone)m=c.find(x=>x.id=='train')||null;   // the train always shows up by stage 3
+  else if(D.trainDone&&D.stage>=(D.trainSt||0)+4)m=c.find(x=>x.id=='train')||null;   // and a stronger one comes back at least every 4 stages after that
   if(!m)m=wpick(c.map(x=>({m:x,w:x.w*(D.msHist.includes(x.id)?.15:1)}))).m;
   let items=m.make(),name=m.name;
-  if(D.stage>=6){const c2=(m.id=='train'||m.id=='carrier')?[]:c.filter(x=>x!==m&&!(m.sea&&x.sea)&&x.id!='train'&&x.id!='carrier');if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
+  if(D.stage>=6&&!D.dr){const c2=(m.id=='train'||m.id=='carrier')?[]:c.filter(x=>x!==m&&!(m.sea&&x.sea)&&x.id!='train'&&x.id!='carrier');if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
   D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
   D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage};
   if(m.id=='train'||m.id=='carrier')dq=dq.filter(q=>q.ms);   // drop delayed escorts from earlier formations so they don't pile onto the boss fight
   launch(items,D.ms.id);D.cool=3.5;
 }
 function lanes(h){
-  const lim=Math.min(3,1+Math.floor(h/2.5)),cnt=t=>en.filter(e=>e.ty==t&&!e.dead).length,ok=D.brk<=0&&!bossA();
+  const lim=Math.min(3,1+Math.floor(h/2.5)),cnt=t=>en.filter(e=>e.ty==t&&!e.dead).length,ok=D.brk<=0&&!bossA()&&!D.dr;
   D.gT-=DT;if(D.gT<=0){   // desert lane: turrets, tanks, trucks (singles, sometimes a pair)
     const gc=en.filter(e=>e.gnd&&!e.tr&&!e.sea&&!e.oil).length;
     if(ok&&mt>=24&&gc<lim){
@@ -1794,12 +1838,12 @@ function lanes(h){
     if(D.brk<=0&&!cnt('cargo')){cargo();D.cT=(24+rnd()*18)*(P[0].hp<50?.55:1)}else D.cT=2;
   }
 }
-function spawnOne(){   // random filler: one hovering fighter at the spot farthest from the others, with its own free sway
-  const r=rnd(),h=heat(),ty=(mt>85&&r>.82)?'scout':(mt>22&&r>.75&&!hasT('heli'))?'heli':(mt>18&&r>.5)?'minion2':'minion',d=FT[ty];
+function spawnOne(esc){   // random filler: one hovering fighter at the spot farthest from the others, with its own free sway (esc: a train-fight escort, only basic minions)
+  const r=rnd(),h=heat(),ty=esc?((mt>60&&r>.55)?'minion2':'minion'):(mt>85&&r>.82)?'scout':(mt>22&&r>.75&&!hasT('heli'))?'heli':(mt>18&&r>.5)?'minion2':'minion',d=FT[ty];
   let bx=W/2,bd=-1;
   for(let i=0;i<5;i++){const x=70+rnd()*(W-140),m=Math.min(999,...en.filter(e=>!e.gnd).map(e=>Math.abs(e.x-x)));if(m>bd){bd=m;bx=x}}
   bx=Math.max(105,Math.min(W-105,bx));
-  en.push({ty,x:bx,x0:bx,tx:bx,y:-50,sy:SYB[ty]+rnd()*130,stay:7+rnd()*4,age:0,cd:1.4+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:rnd()*6.28,n:0,alt:0,rc:0,fill:1});
+  en.push({ty,x:bx,x0:bx,tx:bx,y:-50,sy:SYB[ty]+rnd()*130,stay:7+rnd()*4,age:0,cd:1.4+rnd()*.8,hp:d.hp,mhp:d.hp,r:d.r,pts:d.pts,ph:rnd()*6.28,n:0,alt:0,rc:0,fill:1,tf:esc?1:0});
 }
 function directorStep(){
   const h=heat();
@@ -1811,7 +1855,7 @@ function directorStep(){
   if(D.brk>0){   // breather after a stage: nothing new spawns, a supply cargo plane drifts in, then the next stage is announced
     D.brk-=DT;
     if(D.sup&&D.brk<5.2){D.sup=0;cargo(1)}
-    if(D.brk<=0){D.bn={t:2.6,T:2.6,s:'STAGE '+D.stage,sub:'',w:0};SFX.stage(0);D.cool=Math.max(D.cool,2.2)}   // a couple of quiet seconds after the banner too
+    if(D.brk<=0){D.bn={t:2.6,T:2.6,s:'STAGE '+D.stage,sub:D.dr?'DRONE SWARM ROUND':'',w:0};SFX.stage(0);D.cool=Math.max(D.cool,2.2)}   // a couple of quiet seconds after the banner too
   }
   lanes(h);
   const cap=capA(),ld=loadA();
@@ -1823,18 +1867,23 @@ function directorStep(){
       for(const e of en)if(e.ms===id)e.ms=0;
       pts+=b;D.bn={t:3.2,T:3.2,s:'STAGE CLEAR',sub:b?'+'+b+(full?'  PERFECT':''):'',w:2};
       D.stage++;D.stT=0;D.ms=null;D.brk=8;D.sup=1;D.cool=3;SFX.stage(1);
+      D.dr=D.stage>=3&&!D.dr&&rnd()<.25?1:0;   // some stages (never two in a row) are a drone swarm round
     }
   }else if(D.brk<=0){
     D.stT+=DT;
     if(D.stT>=stLen()&&D.cool<=0&&(ld<cap*.5||D.stT>stLen()+14))startMilestone();
   }
-  if(D.brk<=0&&D.cool<=0&&D.calm>=Math.max(.5,2.2-.28*h)){if(!pickEnc())D.cool=.8}
+  if(D.dr)droneRound();
+  else if(D.brk<=0&&D.cool<=0&&D.calm>=Math.max(.5,2.2-.28*h)){if(!pickEnc())D.cool=.8}
   D.fT-=DT;
   if(D.fT<=0){   // a touch of old-style random filler so quiet moments are never dead and no two runs flow the same
     D.fT=3.6+rnd()*2.6+Math.max(0,h-3)*1.6;
     const nf=en.filter(e=>e.fill&&!e.dead).length;
-    if(D.n>=3&&mt>=12&&D.brk<=0&&!D.ms&&nf<(h>4?1:Math.min(3,1+Math.floor(h/2.5)))&&ld<cap*.45)spawnOne();
+    if(D.n>=3&&mt>=12&&D.brk<=0&&!D.ms&&!D.dr&&nf<(h>4?1:Math.min(3,1+Math.floor(h/2.5)))&&ld<cap*.45)spawnOne();
   }
+  // train fight: the formations are held back, but a few basic minions (never more than 2 alive) still come in now and then
+  if(!en.some(e=>e.tr&&!e.dead&&e.y>-60&&e.y<H+60))D.tmT=5;
+  else{D.tmT=(D.tmT||0)-DT;if(D.tmT<=0){D.tmT=8+rnd()*5;if(D.brk<=0&&en.filter(e=>e.tf&&!e.dead).length<2)spawnOne(1)}}
 }
 function mission(){
   mt+=DT;
