@@ -801,7 +801,7 @@ function droneJet(x,y,e){   // small dart-shaped suicide drone, nose toward its 
   ctx.restore();
 }
 const CL=130,CW=46,CM=[[-43,CL-40],[43,CL-40],[-43,-CL+48],[43,-CL+48]];   // carrier half-length, half-width, and its four deck gun mounts
-const PARK_HP=120;   // hit points of each parked striker on the deck (a launched striker is a normal one)
+const PARK_HP=420;   // hit points of each parked striker on the deck (a launched striker is a normal one)
 const GHP=220;   // hit points of each carrier deck gun
 function killGun(e,j){const bx=e.x+CM[j][0],by=e.y+CM[j][1];e.gh[j]=0;pts+=200;SFX.boom(1,bx);burst(bx,by,C.ember,22);burst(bx,by,C.cream,10);burst(bx,by,C.ink,8);rings.push({x:bx,y:by,t:0,s:.45});
   pop(bx,by-22,e.gh.every(v=>v<=0)?'ALL GUNS DOWN +200':'DECK GUN +200')}
@@ -1261,12 +1261,12 @@ function starfield(slot,n){   // star plane glides in toward a spot near the cen
 const TRAIN_K={trainE:{hp:130,pts:600},trainC:{hp:70,pts:300},trainA:{hp:70*2.3,pts:420},trainR:{hp:70*.9,pts:360},trainT:{hp:70*1.15,pts:380},trainB:{hp:70*.75,pts:250},trainF:{hp:70*.8,pts:340},trainM:{hp:70*1.4,pts:400}};   // base hit points / points per kind of car
 function spawnTrain(){SFX.horn('train');   // appears from behind, runs up the track beside you, then keeps pace and stays until destroyed
   const lv=D.trainN||0;D.trainN=lv+1;D.trainSt=D.stage;   // the first train is the plain one; every later train is stronger, longer, and mixes in new kinds of car
-  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(tt0,lv+1)),sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
+  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(tt0,lv+1)),stK=1+Math.max(0,D.stage-2)*.12,sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
   const kinds=['trainC'];if(tier>=2)kinds.push('trainA','trainR','trainF');if(tier>=3)kinds.push('trainT','trainB');if(tier>=4)kinds.push('trainM');   // armoured shell cart + rocket-fan cart from the 2nd train on, twin-gun + exploding ammo cart after that
   let last='',deck=[];
   for(let i=0;i<=n;i++){const eng=i==0;let ty='trainE';
     if(!eng){if(kinds.length>1){if(!deck.length)deck=kinds.slice().sort(()=>rnd()-.5);ty=deck.pop();if(ty==last&&deck.length)deck.unshift(ty),ty=deck.pop();last=ty}else ty='trainC'}
-    const K=TRAIN_K[ty],wy=wy0-i*gap,hp=Math.round(K.hp*(1+tier*.4));
+    const K=TRAIN_K[ty],wy=wy0-i*gap,hp=Math.round(K.hp*(1+tier*.4)*(ty=='trainA'?stK:1));   // only the armoured carts toughen smoothly with every stage past 2 (+12% per stage); normal carts keep their health
     en.push({ty,gnd:1,tr:1,tier,sc,wy,x:railX(wy),y:H+70+i*gap,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:(eng?23:21)*sc,pts:K.pts+tier*100,g,rc:0,ph:0,n:0,alt:0,vr:(i*7+Math.floor(rnd()*3))%3})}
 }
 function ammoBlast(e){   // an ammo cart cooks off: area damage to you and to the cars around it
@@ -1424,25 +1424,61 @@ function radarSite(sd){   // an enemy radar station on the desert coast: a stati
 }
 function radarItems(){   // 6-11 radar stations spread over the stage, a few fighters keep the player busy meanwhile
   const n=6+Math.floor(rnd()*6),it=[];let t=0,sd=rnd()<.5?1:0;D.rdN=n;D.rdK=0;
-  for(let i=0;i<n;i++){if(rnd()<.7)sd=1-sd;const q=sd;it.push(X(t,.5,()=>radarSite(q)));t+=1.7+rnd()*1.3}
+  for(let i=0;i<n;i++){if(rnd()<.7)sd=1-sd;const q=sd;it.push({...X(t,.5,()=>radarSite(q)),rs:1});t+=1.7+rnd()*1.3}
   it.push(U(3.5,'minion2',W/2-110,105,{am:25,fq:.5,ph:0}),U(3.5,'minion2',W/2+110,105,{am:25,fq:.5,ph:Math.PI}));
   if(n>=8)it.push(U(t*.55,'minion2',W/2,110,{am:40,fq:.5,ph:0}),X(t*.6,1.2,()=>kamikaze(2)));
   if(n>=10)it.push(U(t*.8,'trio',W/2,125,{am:40,fq:.6,ph:0}));
   return it;
 }
-function radarDish(x,y,e){   // top-down radar station: concrete pad, control hut, slowly turning dish
-  ctx.save();ctx.translate(x,y);
-  ctx.fillStyle='rgba(20,18,16,.25)';ctx.fillRect(-18,-14,44,44);
-  ctx.fillStyle='#6d717a';ctx.fillRect(-22,-22,44,44);ctx.strokeStyle='rgba(236,217,208,.4)';ctx.lineWidth=1;ctx.strokeRect(-22,-22,44,44);
-  ctx.fillStyle='#4a4f58';ctx.fillRect(-19,8,15,12);ctx.fillRect(7,10,11,9);
-  ctx.save();ctx.translate(0,-3);ctx.rotate(e.age*.9+e.ph);
-  ctx.fillStyle='rgba(20,18,16,.25)';ctx.beginPath();ctx.ellipse(3,4,15,6,0,0,6.28);ctx.fill();
-  ctx.strokeStyle='#22272d';ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(-17,0);ctx.lineTo(17,0);ctx.stroke();
-  ctx.fillStyle='#c9ccd1';ctx.beginPath();ctx.ellipse(0,0,16,6.5,0,0,6.28);ctx.fill();ctx.strokeStyle='#4a4f58';ctx.lineWidth=1.2;ctx.stroke();
-  ctx.fillStyle='#8a8f98';ctx.beginPath();ctx.ellipse(-2,0,9,3.2,0,0,6.28);ctx.fill();
-  ctx.fillStyle='#22272d';ctx.fillRect(-1.5,-1.5,3,3);
+function radarDish(x,y,e){   // top-down early-warning radar site: fenced gravel compound, access road, shelters, generator, fuel tank, and a rotating lattice antenna on a tower
+  ctx.save();ctx.translate(x,y);ctx.lineCap='butt';ctx.lineJoin='miter';
+  // access road leading out of the gate
+  ctx.fillStyle='rgba(58,60,66,.75)';ctx.fillRect(-5,28,10,30);
+  ctx.strokeStyle='rgba(236,217,208,.22)';ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(0,30);ctx.lineTo(0,58);ctx.stroke();ctx.setLineDash([]);
+  // compound ground: shadow, gravel pad, darker packed-earth border
+  ctx.fillStyle='rgba(20,18,16,.25)';ctx.fillRect(-26,-22,60,58);
+  ctx.fillStyle='#74777d';ctx.fillRect(-30,-30,60,60);
+  ctx.fillStyle='rgba(60,58,56,.35)';for(let i=0;i<22;i++){const gx=-27+hs(i,41)*54,gy=-27+hs(i,43)*54;ctx.fillRect(gx,gy,1.6,1.6)}   // gravel specks
+  ctx.fillStyle='#5f6369';ctx.fillRect(-30,-30,60,3);ctx.fillRect(-30,27,60,3);ctx.fillRect(-30,-30,3,60);ctx.fillRect(27,-30,3,60);
+  // chain-link perimeter fence with a gate gap on the road side and corner posts
+  ctx.strokeStyle='rgba(222,214,206,.7)';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+  ctx.beginPath();ctx.moveTo(-5,28);ctx.lineTo(-28,28);ctx.lineTo(-28,-28);ctx.lineTo(28,-28);ctx.lineTo(28,28);ctx.lineTo(5,28);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#2b2f35';for(const c of[[-28,-28],[28,-28],[-28,28],[28,28],[-5,28],[5,28]])ctx.fillRect(c[0]-1.6,c[1]-1.6,3.2,3.2);
+  // operations shelter: flat roof, AC units, rooftop vent, door
+  ctx.fillStyle='rgba(20,18,16,.3)';ctx.fillRect(-21,8,26,17);
+  ctx.fillStyle='#9a9ea6';ctx.fillRect(-24,5,26,17);ctx.strokeStyle='rgba(30,32,36,.65)';ctx.lineWidth=1;ctx.strokeRect(-24,5,26,17);
+  ctx.fillStyle='#5a5f67';ctx.fillRect(-21,8,8,6);ctx.fillRect(-11,8,8,6);   // rooftop AC units
+  ctx.strokeStyle='rgba(20,22,26,.6)';ctx.lineWidth=.8;for(const ax of[-17,-7]){ctx.beginPath();ctx.arc(ax,11,2.3,0,6.28);ctx.stroke()}
+  ctx.fillStyle='#3a3e45';ctx.fillRect(-3,16,4,4);
+  // generator shed and fuel tank
+  ctx.fillStyle='rgba(20,18,16,.3)';ctx.fillRect(10,12,13,9);
+  ctx.fillStyle='#7d6f58';ctx.fillRect(8,10,13,9);ctx.strokeStyle='rgba(30,32,36,.6)';ctx.strokeRect(8,10,13,9);
+  ctx.fillStyle='#2f3338';ctx.fillRect(10,12,3,5);
+  ctx.fillStyle='rgba(20,18,16,.3)';ctx.beginPath();ctx.arc(21,-14,6,0,6.28);ctx.fill();
+  ctx.fillStyle='#8e9299';ctx.beginPath();ctx.arc(19,-16,6,0,6.28);ctx.fill();ctx.strokeStyle='rgba(30,32,36,.6)';ctx.stroke();
+  ctx.fillStyle='#5c6068';ctx.beginPath();ctx.arc(19,-16,2.2,0,6.28);ctx.fill();
+  // parked service truck on the apron
+  ctx.fillStyle='rgba(20,18,16,.3)';ctx.fillRect(-1,19,9,7);
+  ctx.fillStyle='#4f5a48';ctx.fillRect(-3,17,8,9);ctx.fillStyle='#d9d3c4';ctx.fillRect(-2,17,6,2.5);
+  // steel tower base: four legs, bracing, equipment cabin
+  ctx.fillStyle='rgba(20,18,16,.3)';ctx.beginPath();ctx.arc(7,3,11,0,6.28);ctx.fill();
+  ctx.fillStyle='#4b5058';ctx.fillRect(-10,-16,20,20);
+  ctx.strokeStyle='#2a2e34';ctx.lineWidth=1.2;ctx.strokeRect(-9,-15,18,18);ctx.beginPath();ctx.moveTo(-9,-15);ctx.lineTo(9,3);ctx.moveTo(9,-15);ctx.lineTo(-9,3);ctx.stroke();
+  ctx.fillStyle='#22262b';for(const c of[[-9,-15],[9,-15],[-9,3],[9,3]]){ctx.beginPath();ctx.arc(c[0],c[1],2.4,0,6.28);ctx.fill()}
+  // rotating air-search antenna: long lattice reflector with a feed-horn boom and counterweight
+  ctx.save();ctx.translate(0,-6);ctx.rotate(e.age*.9+e.ph);
+  ctx.fillStyle='#2f343a';ctx.fillRect(-4,-3,8,6);   // turntable housing
+  ctx.fillStyle='#d4d7dc';ctx.fillRect(-22,-9,44,6);ctx.strokeStyle='#4a4f58';ctx.lineWidth=1;ctx.strokeRect(-22,-9,44,6);   // reflector panel
+  ctx.strokeStyle='rgba(74,79,88,.8)';ctx.lineWidth=.7;ctx.beginPath();
+  for(let lx=-20;lx<=20;lx+=4){ctx.moveTo(lx,-9);ctx.lineTo(lx+4,-3)}for(let lx=-20;lx<=20;lx+=4){ctx.moveTo(lx+4,-9);ctx.lineTo(lx,-3)}ctx.stroke();   // lattice cross-bracing
+  ctx.fillStyle='#8a8f98';ctx.fillRect(-22,-4,44,1.4);   // lower rail
+  ctx.strokeStyle='#22272d';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(0,-3);ctx.lineTo(0,9);ctx.stroke();   // feed boom
+  ctx.fillStyle='#22272d';ctx.fillRect(-2.6,8,5.2,4);ctx.fillStyle='#c9a24e';ctx.fillRect(-1.2,11,2.4,1.6);   // feed horn
+  ctx.fillStyle='#3a3f47';ctx.fillRect(-3,-13,6,4);   // counterweight
   ctx.restore();
-  const on=Math.sin(e.age*5+e.ph)>0;ctx.fillStyle=on?'#ff6a55':'#5a2a2a';ctx.beginPath();ctx.arc(-15,-15,2.6,0,6.28);ctx.fill();
+  // aviation obstruction light on the tower, blinking
+  const on=Math.sin(e.age*5+e.ph)>0;ctx.fillStyle=on?'#ff6a55':'#5a2a2a';ctx.beginPath();ctx.arc(-9,-15,2.1,0,6.28);ctx.fill();
+  if(on){ctx.fillStyle='rgba(255,106,85,.25)';ctx.beginPath();ctx.arc(-9,-15,5,0,6.28);ctx.fill()}
   ctx.restore();
 }
 function oilRig(x,y,e){   // top-down offshore rig: deck, legs, tanks, derrick, flare stack
@@ -1678,7 +1714,7 @@ const CRK={
   cargo:{...CRD,T:[1.5,1.9],ar:[.5,1.1],vy:[35,60],big:1,wing:.5,bx:.5,tw:[.1,.25],modes:[['sag',.45],['dive',.25],['roll',.3]]},
   starfield:{...CRD,T:[.9,1.3],ar:[2,4],vy:[20,50],fire:.8,wing:0,modes:[['spiral',.5],['flat',.5]]},
   trio:{...CRD,T:[1.1,1.6],big:1},
-  bomber:{...CRD,T:[1.8,2.4],ar:[1.2,2.4],vy:[35,70],fire:1.4,big:2,shed:1,wing:.4,bx:.85,modes:[['glide',.4],['limp',.3],['spiral',.3]]},
+  bomber:{...CRD,T:[1.8,2.4],ar:[.15,.4],vy:[35,70],fire:1.4,big:2,shed:1,wing:0,bx:.85,tw:[0,.2],modes:[['sag',.4],['roll',.3],['dive',.3]]},   // heavy bomber: sags and rolls slowly instead of spinning
   cyclone:{...CRD,T:[1.3,1.8],ar:[2,4],vy:[25,55],fire:1,big:1,wing:0,modes:[['spiral',.5],['flat',.5]]},
   striker:{...CRD,T:[1,1.5]}
 };
@@ -1769,7 +1805,7 @@ function startCrash(e){
   const mn=pickM(k.modes||FMODES),m=CSTYLE[mn],rot=!fighter?0:t=='starfield'?(e.ang||0):t=='a10'&&e.rot!==undefined?e.rot:Math.PI,T=ra(k.T)*m.T;
   const sk=rnd()<m.sk?1:0,bm=sk&&rnd()<.4?(rnd()<.3?2:1):0;   // slides in (or not), and how many times it bounces first
   crashes.push({ty:t,w:k.w,mode:mn,x:e.x,y:e.y,px:e.x,py:e.y,vx:(rnd()-.5)*90+(t=='a10'?(e.d||0)*150:0),vy:ra(k.vy)*m.vy*(t=='a10'?.3:1),ac:m.ac,tw:sgn*ra(k.tw)*m.tw,z:1,vz:mn=='hspin'?.12:0,g:2/(T*T),
-    rot,vr:sgn*(.4+rnd()*.8)*m.vr,ar:sgn*ra(k.ar)*m.ar,vm:t=='heli'?16:t=='chinook'?5:t=='cargo'?2.2:12,t:0,age:e.age||0,ph:e.ph||0,sc:1,nb:0,bt:(k.bt||0)*(m.btm===undefined?1:m.btm),
+    rot,vr:sgn*(.4+rnd()*.8)*m.vr,ar:sgn*ra(k.ar)*m.ar,vm:t=='heli'?16:t=='chinook'?5:t=='cargo'?2.2:t=='bomber'?1.6:12,t:0,age:e.age||0,ph:e.ph||0,sc:1,nb:0,bt:(k.bt||0)*(m.btm===undefined?1:m.btm),
     wt:fighter&&rnd()<(k.wing||0)?.15+rnd()*.35:0,ws:0,se:0,shed:k.shed||0,fire:k.fire*(.5+rnd()*.9),big:k.big,r:e.r,n:0,tr:[],sk,bm,bx:rnd()<Math.min(1,(k.bx||.6)+(sk?0:.2))?1:0,gd:0,bn:0});
 }
 function startPlayerCrash(p){   // the player's aircraft does not just vanish: engine fireball, ejection, tumbling fall, hard impact
@@ -2129,7 +2165,7 @@ function startMilestone(){
   if(m.id=='radar'){D.bn={t:3.4,T:3.4,s:'RADAR STATIONS',sub:'DESTROY '+D.rdN+' STATIONS',w:1};SFX.alarm()}
   if(m.id=='convoy'){D.bn={t:3.8,T:3.8,s:'PROTECT THE CARGO',sub:'SAFE +3000  ·  LOST -3000',w:1};SFX.alarm()}
   D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
-  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0,bs:m.id=='maelstrom'||m.id=='bomberrun'?1:0};
+  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0,rd:m.id=='radar'?1:0,bs:m.id=='maelstrom'||m.id=='bomberrun'?1:0};
   if(m.id=='train'||m.id=='carrier')dq=dq.filter(q=>q.ms);   // drop delayed escorts from earlier formations so they don't pile onto the boss fight
   launch(items,D.ms.id);D.cool=3.5;
 }
@@ -2187,7 +2223,8 @@ function directorStep(){
   const cap=capA(),ld=loadA();
   D.calm=ld<cap*(.4+.045*h)?D.calm+DT:0;D.cool-=DT;
   if(D.ms){
-    D.ms.t+=DT;const id=D.ms.id,alive=dq.some(q=>q.ms===id)||en.some(e=>e.ms===id)||!!(cgo&&cgo.ms===id&&(!cgo.fin||cgo.ft<(cgo.dead?5.5:3)));
+    D.ms.t+=DT;const id=D.ms.id,alive=D.ms.rd?(dq.some(q=>q.ms===id&&q.it.rs)||en.some(e=>e.ms===id&&e.ty=='radar'&&!e.dead)):(dq.some(q=>q.ms===id)||en.some(e=>e.ms===id)||!!(cgo&&cgo.ms===id&&(!cgo.fin||cgo.ft<(cgo.dead?5.5:3))));   // radar event: over once every station is destroyed or has scrolled past
+    if(D.ms.rd&&!alive)dq=dq.filter(q=>q.ms!==id);
     if((!alive&&D.ms.t>2)||D.ms.t>(D.ms.cv?300:D.ms.bs?600:90)){
       const full=D.ms.n>0&&D.ms.k>=D.ms.n,lost=D.cgoLost,b=(alive||lost)?0:Math.round(D.ms.bonus*(full?1.5:1));
       for(const e of en)if(e.ms===id)e.ms=0;
