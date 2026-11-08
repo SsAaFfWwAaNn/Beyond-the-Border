@@ -958,7 +958,7 @@ function oilField(){   // two or three oil rigs sit in the gulf; blowing one up 
     en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:100,mhp:100,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
 }
 function blast(e,direct){   // drone explosion: only a direct hit hurts you; a shot-down drone harms no one and barely scratches anything near it
-  cgoBlast(e);SFX.blast(e.x);const p=P[0],R=80;rings.push({x:e.x,y:e.y,t:0});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
+  cgoBlast(e);SFX.blast(e.x);const p=P[0],R=80;rings.push(direct?{x:e.x,y:e.y,t:0}:{x:e.x,y:e.y,t:0,s:.55});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
   if(direct)for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<e.r+16+4)hurt(p,Math.round(28*(1-Math.min(d,R)/R*.5)),p.x,p.y)}
   for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<45){o.hp-=6;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
@@ -1329,12 +1329,12 @@ function drawPickups(){
       ctx.fillStyle=C.brick;ctx.fillRect(o.x-2.6,o.y-7,5.2,14);ctx.fillRect(o.x-7,o.y-2.6,14,5.2)}}
 }
 function drawFires(){
-  for(const q of rings){const k=q.t/.5,s=q.s||1;ctx.strokeStyle='rgba(236,217,208,'+(q.s?.5:.85)*(1-k)+')';ctx.lineWidth=q.s?2:3;ctx.beginPath();ctx.arc(q.x,q.y,80*s*k,0,6.28);ctx.stroke();ctx.fillStyle='rgba(233,148,106,'+(q.s?.14:.35)*(1-k)+')';ctx.fill()}
+  for(const q of rings){const k=q.t/.5,s=q.s||1;if(k>=1)continue;ctx.strokeStyle='rgba(236,217,208,'+al((q.s?.5:.85)*(1-k))+')';ctx.lineWidth=q.s?2:3;ctx.beginPath();ctx.arc(q.x,q.y,80*s*k,0,6.28);ctx.stroke();ctx.fillStyle='rgba(233,148,106,'+al((q.s?.14:.35)*(1-k))+')';ctx.fill()}   // plain decimals only: a tiny alpha like 1e-16 is an invalid colour and left a stale full-size ring on screen for one frame
   for(const f of fires){
     const y=scroll-f.wy,x=f.x,fade=Math.min(1,(f.life-f.t)/3),t=f.t;
     ctx.fillStyle='rgba(20,16,20,'+.38*fade+')';ctx.beginPath();ctx.ellipse(x,y,52+Math.min(30,t*9),44+Math.min(26,t*8),0,0,6.28);ctx.fill();
-    if(t<1.2){const k=t/1.2;ctx.fillStyle='rgba(233,148,106,'+.55*(1-k)+')';ctx.beginPath();ctx.arc(x,y,115*k,0,6.28);ctx.fill();
-      ctx.strokeStyle='rgba(236,217,208,'+.8*(1-k)+')';ctx.lineWidth=3;ctx.stroke()}
+    if(t<1.2){const k=t/1.2;ctx.fillStyle='rgba(233,148,106,'+al(.55*(1-k))+')';ctx.beginPath();ctx.arc(x,y,115*k,0,6.28);ctx.fill();
+      ctx.strokeStyle='rgba(236,217,208,'+al(.8*(1-k))+')';ctx.lineWidth=3;ctx.stroke()}
     if(t>1){const k=Math.min(1,(t-1)/1.5)*fade;
       for(let i=0;i<5;i++){const yy=y-((tt*34+i*21)%90),a=.3*k*(1-((tt*34+i*21)%90)/90);ctx.fillStyle='rgba(52,46,50,'+a+')';ctx.beginPath();ctx.arc(x+Math.sin(tt*1.3+i*2)*12,yy,10+((tt*34+i*21)%90)*.18,0,6.28);ctx.fill()}
       for(let i=0;i<11;i++){const a=i*2.4+Math.sin(tt*2+i)*.5,rr=8+(i%4)*8,ox=Math.cos(a)*rr,oy=Math.sin(a)*rr*.8-Math.abs(Math.sin(tt*9+i*1.7))*5,s=(7+(i%3)*3)*k*(.8+.4*Math.sin(tt*12+i*3));
