@@ -1279,6 +1279,7 @@ function fireN(e,p){
 const GUN_FLOOR=[0,0,5,8,12];   // earliest stage for the next gun, by the gun count you just reached (the first gun upgrade is due from stage 1 about 1 run in 4 but only once the first mini boss fight has begun, never in the quiet stage-1 lead-up; otherwise from stage 2, right after it)
 const ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 const PIERCE_GAP=[150,90],SHIELD_T=8,SHIELD_GAP=[50,40];   // break after a piercing drop / shield drop: [base, random extra] seconds
+const HPP=.4;   // chance a cargo plane drops a health pack (solo)
 const PIERCE_MAX=5;   // each piercing pickup lets your rounds pass through one more plane (cap 5, kept until you die)
 function gunDue(g){return g<=1?(rnd()<.25?1:2):Math.max(GUN_FLOOR[g]+ri(0,3),D.stage+ri(2,4))}
 function cargoLoot(e){
@@ -1288,16 +1289,16 @@ function cargoLoot(e){
     P.forEach((q,i)=>{const g=q.g||1;if(!q.alive||g>=3)return;
       const ok=g<=1?(D.stage>=D.duo1&&(D.stage>=2||D.ms)):D.stage>=3;   // 1st upgrade: after the boss (sometimes during its fight); 2nd: from stage 3
       if(ok&&rnd()<(e.sup?.9:.5)){pickups.push({x:e.x+(n?(i?44:-44):0),y:e.y,t:0,k:'gun',for:i});n++}});
-    if(n){if(rnd()<.15)pickups.push({x:e.x,y:e.y-34,t:0,k:'hp'});if(D.stage>=2&&rnd()<.07&&P.some(q=>q.alive&&(q.pl||0)<PIERCE_MAX)&&!(D.pCd>0)){pickups.push({x:e.x,y:e.y+34,t:0,k:'pierce'});D.pCd=PIERCE_GAP[0]+rnd()*PIERCE_GAP[1]}
+    if(n){if(rnd()<.24)pickups.push({x:e.x,y:e.y-34,t:0,k:'hp'});if(D.stage>=2&&rnd()<.07&&P.some(q=>q.alive&&(q.pl||0)<PIERCE_MAX)&&!(D.pCd>0)){pickups.push({x:e.x,y:e.y+34,t:0,k:'pierce'});D.pCd=PIERCE_GAP[0]+rnd()*PIERCE_GAP[1]}
       else if(D.stage>=2&&rnd()<.14&&!(D.sCd>0)&&P.some(q=>q.alive&&!(q.sh>0))){pickups.push({x:e.x,y:e.y+34,t:0,k:'shield'});D.sCd=SHIELD_GAP[0]+rnd()*SHIELD_GAP[1]}return}
   }
   const p0=P.filter(q=>q.alive).sort((a,b)=>(a.g||1)-(b.g||1))[0];if(!p0)return;
   const g=p0.g||1;if(D.gunAt===undefined)D.gunAt=gunDue(1);
   const gunP=(g<5&&D.stage>=D.gunAt&&(D.stage>=2||D.ms))?(g<=1?(e.sup?.5:.22):.08):0,r=rnd();   // your very first gun is much more likely to drop (and the post-boss supply plane favours it)
   if(r<gunP)pickups.push({x:e.x,y:e.y,t:0,k:'gun'});
-  else if(r<gunP+.3)pickups.push({x:e.x,y:e.y,t:0,k:'hp'});
-  else if(D.stage>=2&&(p0.pl||0)<PIERCE_MAX&&!(D.pCd>0)&&r<gunP+.3+.2&&rnd()<.35){pickups.push({x:e.x,y:e.y,t:0,k:'pierce'});D.pCd=PIERCE_GAP[0]+rnd()*PIERCE_GAP[1]}   // piercing rounds: only from stage 2, with a break before the next one can drop
-  else if(D.stage>=2&&!(D.sCd>0)&&!(p0.sh>0)&&r>=gunP+.3+.2&&r<gunP+.3+.2+.14){pickups.push({x:e.x,y:e.y,t:0,k:'shield'});D.sCd=SHIELD_GAP[0]+rnd()*SHIELD_GAP[1]}   // temporary shield
+  else if(r<gunP+HPP)pickups.push({x:e.x,y:e.y,t:0,k:'hp'});
+  else if(D.stage>=2&&(p0.pl||0)<PIERCE_MAX&&!(D.pCd>0)&&r<gunP+HPP+.2&&rnd()<.35){pickups.push({x:e.x,y:e.y,t:0,k:'pierce'});D.pCd=PIERCE_GAP[0]+rnd()*PIERCE_GAP[1]}   // piercing rounds: only from stage 2, with a break before the next one can drop
+  else if(D.stage>=2&&!(D.sCd>0)&&!(p0.sh>0)&&r>=gunP+HPP+.2&&r<gunP+HPP+.2+.14){pickups.push({x:e.x,y:e.y,t:0,k:'shield'});D.sCd=SHIELD_GAP[0]+rnd()*SHIELD_GAP[1]}   // temporary shield
 }
 function stepFires(){
   const p=P[0];stepCrashes();
@@ -1985,17 +1986,17 @@ const MS=[
  {id:'gunship',name:'HELICOPTER GUNSHIP',minS:1,w:3,make(){const a=[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})];if(mt>100)a.push(U(1.4,'minion',W/2-185,150,{am:15,fq:.5,ph:0}),U(1.4,'minion',W/2+185,150,{am:15,fq:.5,ph:0}));return a}},
  {id:'twinsq',name:'TWIN SQUADRONS',minS:2,w:2,ok:()=>!hasT('wing'),make(){return[X(0,4.4,()=>squad(150,4)),X(2.5,4.4,()=>squad(W-150,4)),X(7,5.5,()=>squad(W/2,5))]}},
  {id:'swarm',name:'DRONE SWARM',minS:2,w:2,ok:()=>!hasT('kamikaze'),make(){const k=Math.min(6,1+D.stage),it=[];let t=0;for(let i=0;i<8+k;i++){it.push(X(t,.8,()=>droneRand(1+(rnd()<.35?1:0))));t+=.4+rnd()*1.2}return it}},
- {id:'convoy',name:'PROTECT THE CARGO',minS:3,w:3,ok:()=>!cgo&&D.stage>=(D.cgoSt||0)+4&&!en.some(e=>e.ty=='battle'||e.ty=='carrier'||e.tr),make(){D.cgoSt=D.stage;return[X(0,3,cgoStart)].concat(cgoWaves())}},   // rare: never twice within 5 stages
+ {id:'convoy',big:1,name:'PROTECT THE CARGO',minS:3,w:3,ok:()=>!cgo&&D.stage>=(D.cgoSt||0)+4&&!en.some(e=>e.ty=='battle'||e.ty=='carrier'||e.tr),make(){D.cgoSt=D.stage;return[X(0,3,cgoStart)].concat(cgoWaves())}},   // rare: never twice within 5 stages
  {id:'stars',name:'STAR STORM',minS:2,w:2,ok:()=>!hasT('starfield'),make(){return starItems(Math.min(3,1+Math.floor(D.stage/2)))}},
- {id:'battle',name:'BATTLESHIP',minS:2,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,10,()=>sea('battle')),U(3,'minion2',W/2-110,110,{am:25,fq:.5,ph:0}),U(3,'minion2',W/2+110,110,{am:25,fq:.5,ph:Math.PI}),X(5,2.5,()=>sea('boat')),X(8,2.5,()=>sea('boat',95))]}},
- {id:'oil',name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
- {id:'radar',name:'RADAR STATIONS',minS:2,w:2,ok:()=>!hasT('radar')&&!en.some(e=>e.tr),make:radarItems},   // destroy 6-11 enemy radar stations
- {id:'dread',name:'DREADNOUGHT',minS:3,w:3,ok:()=>!hasT('dread'),make(){return[U(0,'dread',W/2,100,{am:40,fq:.45,ph:0}),U(1.2,'minion2',W/2-135,150,{am:25,fq:.5,ph:0}),U(1.2,'minion2',W/2+135,150,{am:25,fq:.5,ph:0}),U(2.4,'minion',W/2-200,200,{am:15,fq:.5,ph:0}),U(2.4,'minion',W/2+200,200,{am:15,fq:.5,ph:0})]}},
- {id:'carrier',name:'AIRCRAFT CARRIER',minS:2,w:3,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,12,()=>sea('carrier'))]}},
- {id:'train',name:'ARMORED TRAIN',minS:2,w:3,ok:()=>railS!==null&&mt>=D.railAt+20&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
+ {id:'battle',big:1,name:'BATTLESHIP',minS:2,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,10,()=>sea('battle')),U(3,'minion2',W/2-110,110,{am:25,fq:.5,ph:0}),U(3,'minion2',W/2+110,110,{am:25,fq:.5,ph:Math.PI}),X(5,2.5,()=>sea('boat')),X(8,2.5,()=>sea('boat',95))]}},
+ {id:'oil',big:1,name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
+ {id:'radar',big:1,name:'RADAR STATIONS',minS:2,w:2,ok:()=>!hasT('radar')&&!en.some(e=>e.tr),make:radarItems},   // destroy 6-11 enemy radar stations
+ {id:'dread',big:1,name:'DREADNOUGHT',minS:3,w:3,ok:()=>!hasT('dread'),make(){return[U(0,'dread',W/2,100,{am:40,fq:.45,ph:0}),U(1.2,'minion2',W/2-135,150,{am:25,fq:.5,ph:0}),U(1.2,'minion2',W/2+135,150,{am:25,fq:.5,ph:0}),U(2.4,'minion',W/2-200,200,{am:15,fq:.5,ph:0}),U(2.4,'minion',W/2+200,200,{am:15,fq:.5,ph:0})]}},
+ {id:'carrier',big:1,name:'AIRCRAFT CARRIER',minS:2,w:3,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,12,()=>sea('carrier'))]}},
+ {id:'train',big:1,name:'ARMORED TRAIN',minS:2,w:3,ok:()=>railS!==null&&mt>=D.railAt+20&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
  {id:'aces',name:'ACE PILOTS',minS:3,w:1.5,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2-110,150,{am:40,fq:.6}),U(1.5,'striker',W/2+110,170,{am:40,fq:.6}),U(2.5,'minion2',W/2,100,{am:30,fq:.5,ph:0})]}},
  {id:'elite',name:'ELITE WING',minS:3,w:1.5,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI}),U(1.5,'minion2',W/2-60,95,{am:25,fq:.5,ph:0}),U(1.5,'minion2',W/2+60,95,{am:25,fq:.5,ph:Math.PI}),U(2.5,'minion2',W/2,170,{am:25,fq:.5,ph:0})]}},
- {id:'armada',name:'ARMADA',minS:4,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(7,10,()=>sea('battle')),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
+ {id:'armada',big:1,name:'ARMADA',minS:4,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(7,10,()=>sea('battle')),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
 ];
 const stLen=()=>D.dr?8:Math.min(110,50+D.stage*10);   // drone rounds are short
 function pickEnc(){
@@ -2040,7 +2041,8 @@ function startMilestone(){
   else if(D.trainDone&&D.stage>=(D.trainSt||0)+4)m=c.find(x=>x.id=='train')||null;   // and a stronger one comes back at least every 4 stages after that
   if(!m)m=wpick(c.map(x=>({m:x,w:x.w*(D.msHist.includes(x.id)?.15:1)}))).m;
   let items=m.make(),name=m.name;
-  if(D.stage>=6&&!D.dr&&m.id!='convoy'){const c2=(m.id=='train'||m.id=='carrier')?[]:c.filter(x=>x!==m&&!(m.sea&&x.sea)&&x.id!='train'&&x.id!='carrier'&&x.id!='convoy');if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
+  if(D.stage>=6&&!D.dr&&!m.big){const c2=c.filter(x=>x!==m&&!x.big);   // big fights (carrier, train, convoy, battleship, dreadnought, armada, oil field, radar) always stand alone; only the smaller finales stack
+   if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
   if(m.id=='dstorm'||m.id=='swarm'){items=items.map(i=>({...i,d:(i.d||0)+3.2}));D.bn={t:3.2,T:3.2,s:'WARNING',sub:'DRONE SWARM INBOUND',w:1};SFX.alarm()}   // warn first, then the swarm
   if(m.id=='radar'){D.bn={t:3.4,T:3.4,s:'RADAR STATIONS',sub:'DESTROY '+D.rdN+' STATIONS',w:1};SFX.alarm()}
   if(m.id=='convoy'){D.bn={t:3.8,T:3.8,s:'PROTECT THE CARGO',sub:'SAFE +3000  ·  LOST -3000',w:1};SFX.alarm()}
@@ -2077,7 +2079,7 @@ function lanes(h){
     if(ok&&!cnt('oil')&&!cnt('carrier')){oilField();D.oT=85+rnd()*40}else D.oT=4;
   }
   D.cT-=DT;if(D.cT<=0){   // cargo planes: harmless bonus targets that may drop a health pickup (more often when you are low)
-    if(D.brk<=0&&!cnt('cargo')){cargo();D.cT=(24+rnd()*18)*(P[0].hp<50?.55:1)}else D.cT=2;
+    if(D.brk<=0&&!cnt('cargo')){cargo();D.cT=(20+rnd()*15)*(P[0].hp<50?.55:1)}else D.cT=2;
   }
 }
 function spawnOne(esc){   // random filler: one hovering fighter at the spot farthest from the others, with its own free sway (esc: a train-fight escort, only basic minions)
