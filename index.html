@@ -307,7 +307,7 @@ const SFX=(()=>{
     const pn=pan(x),r=rj(.12);
     if(ty=='cyclone'&&!ok('cyc',.2))return;   // the spiral fires ~12 shots a second: keep the sound to a rolling patter
     if(ty=='starfield'){if(!ok('star',.07))return;noise({t:.03,v:.03,ft:'bandpass',f0:1800*r,q:1,a:.001,pan:pn});return}
-    const heavy=ty=='dread'||ty=='battle'||ty=='carrier'||ty=='chinook'||ty=='trainE'||ty=='trainA'||ty=='trainM'||ty=='lancer'||ty=='bomber'||ty=='a10'||ty=='ship';
+    const heavy=ty=='dread'||ty=='battle'||ty=='carrier'||ty=='chinook'||ty=='trainE'||ty=='trainA'||ty=='trainM'||ty=='bomber'||ty=='a10'||ty=='ship';
     if(heavy){noise({t:.07,v:.1,ft:'bandpass',f0:1300*r,f1:500,a:.001,pan:pn});noise({t:.24,v:.15,ft:'lowpass',f0:1200,f1:180,a:.002,pan:pn,wet:.45});tone({f:92*r,f2:36,t:.22,type:'sine',v:.22,a:.002,pan:pn})}
     else{noise({t:.06,v:.07,ft:'bandpass',f0:1700*r,f1:700,q:.8,a:.001,pan:pn});noise({t:.12,v:.06,ft:'lowpass',f0:1500,f1:300,a:.002,pan:pn});tone({f:210*r,f2:90,t:.08,type:'sine',v:.06,a:.001,pan:pn})}
   }
@@ -642,7 +642,7 @@ function hurt(q,d,x,y){
 }
 // ---------- Mission: minions first, then helicopters, squads, ground units, strafing A-10s, and finally a train ----------
 const FT={minion:{hp:18,r:17,pts:100},minion2:{hp:24,r:18,pts:150},heli:{hp:64,r:24,pts:400},scout:{hp:18,r:18,pts:120},striker:{hp:30,r:19,pts:220},trio:{hp:48,r:22,pts:300},dread:{hp:110,r:31,pts:700},chinook:{hp:170,r:34,pts:900},
-  lancer:{hp:100,r:22,pts:800},phantom:{hp:120,r:21,pts:900},cyclone:{hp:230,r:30,pts:1200},bomber:{hp:260,r:40,pts:1500}};   // late-game elites
+  cyclone:{hp:650,r:30,pts:1000},bomber:{hp:800,r:40,pts:1500}};   // late-game bosses (very tanky)
 const GD={truck:{hp:34,r:20,pts:250,v:55},tank:{hp:48,r:20,pts:300,v:25},turret:{hp:36,r:17,pts:200,v:0}};
 const FM={
   minion:{body:sym([[0,-30],[2.2,-24],[3,-10],[24,-4],[25,4],[4,8],[4.5,22],[12,27],[12.5,31],[0,29]]),can:sym([[0,-20],[1.8,-14],[2,-9],[0,-7]]),nz:0,ny:30,fill:'#6e4a45',cc:C.ember},
@@ -654,8 +654,6 @@ const FM={
 FM.wing={...FM.scout,fill:'#5b3036'};
 FM.trio={body:sym([[0,-34],[2.6,-26],[5,-12],[8,-4],[30,6],[34,16],[22,15],[12,16],[10,26],[16,32],[16,35],[8,34],[5,28],[0,30]]),can:sym([[0,-26],[2.2,-18],[2.4,-10],[0,-8]]),nz:9,ny:34,fill:'#6a3b2a',cc:'#ffd27a'};
 FM.cargo={body:sym([[0,-36],[3.5,-33],[7,-24],[9,-14],[9,-2],[42,14],[43,19],[9,14],[9,24],[22,31],[23,35],[9,34],[8,37],[3,39],[0,37]]),can:sym([[0,-30],[2.4,-24],[2.6,-18],[0,-16]]),nz:5,ny:38,fill:'#5f6652',cc:'#e8d9a8'};
-FM.lancer={body:sym([[0,-44],[1.6,-36],[3,-22],[4,-8],[26,6],[27,12],[8,14],[6,26],[12,32],[12,36],[4,36],[0,32]]),can:sym([[0,-26],[1.8,-19],[2,-11],[0,-9]]),nz:4,ny:36,fill:'#2c3a44',cc:'#ff6a5a'};   // sniper: slim dart with a long needle nose
-FM.phantom={body:sym([[0,-30],[3,-26],[34,10],[34,17],[26,15],[22,20],[14,16],[10,22],[5,19],[0,22]]),can:sym([[0,-20],[2.4,-14],[2.6,-8],[0,-6]]),nz:7,ny:21,fill:'#25262d',cc:'#ff9a6a'};   // stealth flying wing, near-black
 FM.bomber={body:sym([[0,-48],[2.6,-42],[5,-30],[6.5,-18],[8,-10],[50,-4],[52,2],[50,8],[10,13],[10,26],[24,31],[25,36],[8,37],[5,44],[0,42]]),can:sym([[0,-38],[2.2,-31],[2.4,-24],[0,-22]]),nz:5,ny:43,fill:'#3b2a33',cc:'#ffd27a'};   // heavy bomber: broad wings, four engine pods (drawn on top)
 FM.dread={body:sym([[0,-32],[4,-22],[11,-10],[38,12],[40,20],[28,18],[14,22],[10,31],[0,27]]),can:sym([[0,-18],[3,-11],[3.4,-4],[0,-2]]),nz:8,ny:30,fill:'#2b1a1e',cc:'#fff1de'};
 // terrain helpers: the left desert coast and the rail line that hugs it (same formula the terrain uses)
@@ -706,13 +704,6 @@ function foeJet(x,y,e){
   ctx.strokeStyle='rgba(236,217,208,.6)';ctx.lineWidth=1;ctx.stroke(m.body);
   ctx.fillStyle=m.cc;ctx.fill(m.can);
   ctx.restore();
-}
-function lancerJet(x,y,e){   // sniper: a red laser sight tracks you while it charges, goes solid when locked, then one heavy bolt
-  if(e.chg>0){const f=1-e.chg/1.3,lk=e.chg<=.3;ctx.save();ctx.translate(x,y+14);ctx.lineCap='round';
-    ctx.strokeStyle=lk?'rgba(255,96,72,'+(.7+.3*Math.sin(tt*60))+')':'rgba(255,120,96,'+(.18+.4*f)+')';ctx.lineWidth=lk?2.6:1.2;if(!lk)ctx.setLineDash([9,7]);
-    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(e.la)*1100,Math.sin(e.la)*1100);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(255,150,120,'+(.25+.6*f)+')';ctx.beginPath();ctx.arc(0,2,5+7*f,0,6.28);ctx.fill();ctx.restore()}
-  foeJet(x,y,e);
 }
 function bomberJet(x,y,e){   // heavy bomber: foeJet hull + four engine pods
   foeJet(x,y,e);
@@ -983,7 +974,7 @@ function drawEnemy(e){
   const x=ix(e,'x'),y=ix(e,'y'),t=e.ty;
   if(t=='heli')heliJet(x,y,e);
   else if(t=='chinook')chinookJet(x,y,e);
-  else if(t=='lancer')lancerJet(x,y,e);else if(t=='bomber')bomberJet(x,y,e);else if(t=='cyclone')cycloneJet(x,y,e);
+  else if(t=='bomber')bomberJet(x,y,e);else if(t=='cyclone')cycloneJet(x,y,e);
   else if(e.tr)trainSeg(x,y,e);else if(t=='oil')oilRig(x,y,e);else if(t=='radar')radarDish(x,y,e);else if(t=='kamikaze')droneJet(x,y,e);else if(e.sea)(t=='battle'||t=='carrier'?bigShip:seaJet)(x,y,e);else if(e.gnd)gndJet(x,y,e);else if(t=='starfield')starJet(x,y,e);else foeJet(x,y,e);
 }
 
@@ -1283,7 +1274,7 @@ function pop(x,y,s){pops.push({x,y,s,t:1.2})}
 function killE(e){
   e.dead=1;pts+=e.pts;const air=!e.gnd&&e.ty!='kamikaze'&&mode=='mission'&&e.y>-30&&e.y<H+40&&crashes.length<CMAX;   // aircraft don't blow up in the air: they take the hit, lose control and crash
   if(air){burst(e.x,e.y,C.ember,6);burst(e.x,e.y,C.cream,5);SFX.hitE(e.x,true)}
-  else{burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);if(e.ty!='kamikaze')SFX.boom(e.oil||e.hh||e.tr?2:/^(heli|chinook|trio|dread|starfield|ship|truck|tank|bomber|cyclone|lancer|phantom)$/.test(e.ty)?1:0,e.x)}
+  else{burst(e.x,e.y,C.ember,20);burst(e.x,e.y,C.cream,8);if(e.ty!='kamikaze')SFX.boom(e.oil||e.hh||e.tr?2:/^(heli|chinook|trio|dread|starfield|ship|truck|tank|bomber|cyclone)$/.test(e.ty)?1:0,e.x)}
   if(e.ty=='kamikaze')blast(e);   // shot-down drones still blow up
   if(e.ty=='trainB')ammoBlast(e);
   if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
@@ -1304,15 +1295,11 @@ function killE(e){
 }
 function shot(e,a,s,d,ox,oy){SFX.eshot(e.x,e.ty);const tc=e.tc&&cgoOn();   // enemies hunting the cargo aim at the ship
   bul.push({x:e.x+(ox||0),y:e.y+(oy===undefined?16:oy),vx:Math.cos(a)*s,vy:Math.sin(a)*s,o:2,d,tr:[],tc:tc?1:0})}
-const ELN={lancer:'LANCER',phantom:'PHANTOM',cyclone:'CYCLONE',bomber:'BOMBER'};
+const ELN={cyclone:'CYCLONE',bomber:'BOMBER'};
 const nrm=a=>{while(a>Math.PI)a-=6.2832;while(a<-Math.PI)a+=6.2832;return a};
-function eliteStep(e,p){   // lancer + cyclone run their own attack cycles every frame
+function eliteStep(e,p){   // cyclone runs its own attack cycle every frame
   const t=e.ty,ok=e.y>25&&e.y<H-12&&e.x>-10&&e.x<W+10&&p.alive&&!e.lv;
-  if(t=='lancer'){   // charge 1.3 s: the laser sight follows you, then locks for the last 0.3 s; one fast heavy bolt, then it reloads
-    if(e.chg>0){e.chg-=DT;if(ok&&e.chg>.3)e.la+=nrm(Math.atan2(p.y-(e.y+14),p.x-e.x)-e.la)*Math.min(1,4.5*DT);
-      if(e.chg<=0){e.chg=0;e.cd=2.4+rnd()*.9;if(ok){SFX.eshot(e.x,'lancer');bul.push({x:e.x+Math.cos(e.la)*8,y:e.y+14+Math.sin(e.la)*8,vx:Math.cos(e.la)*430,vy:Math.sin(e.la)*430,o:2,d:18,tr:[],tc:0,bg:1});burst(e.x,e.y+16,C.cream,5)}}}
-    else{e.cd-=DT;if(e.cd<=0&&ok){e.chg=1.3;e.la=Math.atan2(p.y-(e.y+14),p.x-e.x);SFX.click&&SFX.click()}}
-  }else if(t=='cyclone'){   // a 3 s burst of a two-armed spiral (slow shots), turning one way and then the other, then a pause
+  if(t=='cyclone'){   // a 3 s burst of a two-armed spiral (slow shots), turning one way and then the other, then a pause
     if(e.dr===undefined){e.dr=rnd()<.5?1:-1;e.sa=Math.PI/2;e.bu=0;e.st=0}
     if(e.bu>0){e.bu-=DT;e.st-=DT;
       while(e.st<=0){e.st+=.16;e.sa+=e.dr*.42;for(let k=0;k<2;k++){const a=e.sa+k*Math.PI;shot(e,a,120,7,Math.cos(a)*16,Math.sin(a)*16)}}
@@ -1342,7 +1329,6 @@ function fireN(e,p){
   else if(t=='battle'){const oy=[-50,-28,26,48][e.n];shot(e,Math.atan2(p.y-(e.y+oy),p.x-e.x),215,9,0,oy);e.n=(e.n+1)%4;e.cd=e.n?.26:2.7}   // battleship: four heavy aimed shots, one gun after another
   else if(t=='carrier'){let k=0;while(k<4&&e.gh&&e.gh[e.n]<=0){e.n=(e.n+1)%4;k++}if(k>=4){e.cd=1.2;return}   // skip guns that were shot off; with none left it only launches strikers
     const m=CM[e.n];shot(e,Math.atan2(p.y-(e.y+m[1]),p.x-(e.x+m[0])),205,8,m[0],m[1]);e.n=(e.n+1)%4;e.cd=e.n%2?.3:1.9}   // carrier: bow pair fires left-right, then the stern pair
-  else if(t=='phantom'){shot(e,a+(e.n%2?.045:-.045),290,8,0,14);e.n=(e.n+1)%5;e.cd=e.n?.1:2.4+rnd()*.5}   // five fast aimed rounds, re-aimed at you each time
   else if(t=='bomber'){   // carpet: three slow rows of bombs across the wing with one open lane; the wing guns add two aimed shots
     if(!e.n)e.gp=Math.floor(rnd()*6);
     for(let i=0;i<8;i++){if(i==e.gp||i==e.gp+1)continue;shot(e,D,150,8,(i-3.5)*25,14)}
@@ -1687,7 +1673,6 @@ const CRK={
   trio:{...CRD,T:[1.1,1.6],big:1},
   bomber:{...CRD,T:[1.8,2.4],ar:[1.2,2.4],vy:[35,70],fire:1.4,big:2,shed:1,wing:.4,bx:.85,modes:[['glide',.4],['limp',.3],['spiral',.3]]},
   cyclone:{...CRD,T:[1.3,1.8],ar:[2,4],vy:[25,55],fire:1,big:1,wing:0,modes:[['spiral',.5],['flat',.5]]},
-  lancer:{...CRD,T:[1,1.5]},phantom:{...CRD,T:[1,1.5]},
   striker:{...CRD,T:[1,1.5]}
 };
 const CMAX=26,SCRAP=['#2b1a1e','#4f2a2e','#3d2b2a','#6b2f2f','#161112'],WATER='rgba(240,232,228,.9)',DIRT='rgba(130,108,98,.7)';
@@ -1993,9 +1978,9 @@ Object.assign(WDEF,{plane:[90,90,wPlane],heli:[116,116,wHeli],chook:[130,150,wCh
 // (time survived, nudged up when you play clean and down when you are hurting). Once the sky has been quiet for a moment it buys
 // the next encounter from a library of formations, weighted for variety and for this run's random favourites.
 // Ground, sea and cargo run on their own lanes. Each stage ends in a milestone set piece, then a breather with a supply drop.
-const COST={lancer:4.2,phantom:4.2,cyclone:6.5,bomber:7.5,chinook:5.5,minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:3,striker:3.2,trio:3.8,dread:9,kamikaze:.8,a10:2,starfield:5};
-const SYB={lancer:120,phantom:140,cyclone:140,bomber:125,chinook:115,minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100};
-const STAY={lancer:[24,8],phantom:[22,8],cyclone:[26,8],bomber:[32,8],minion:[8,6],minion2:[9,6],scout:[9,5],heli:[18,8],chinook:[26,8],trio:[18,8],striker:[16,8]};   // [base, random extra] seconds a free fighter stays before it flies off (set-piece enemies never leave)
+const COST={cyclone:6.5,bomber:7.5,chinook:5.5,minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:3,striker:3.2,trio:3.8,dread:9,kamikaze:.8,a10:2,starfield:5};
+const SYB={cyclone:140,bomber:125,chinook:115,minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100};
+const STAY={cyclone:[26,8],bomber:[32,8],minion:[8,6],minion2:[9,6],scout:[9,5],heli:[18,8],chinook:[26,8],trio:[18,8],striker:[16,8]};   // [base, random extra] seconds a free fighter stays before it flies off (set-piece enemies never leave)
 let D={stage:1,bn:null},dq=[],lastHit=-99;
 const hasT=t=>en.some(e=>e.ty==t&&!e.dead);
 const L=(n,f)=>Array.from({length:n},(_,i)=>f(i));
@@ -2011,7 +1996,7 @@ function dirNew(){
   cgo=null;cgoAl=[];
   const tg=['form','squad','drone','heavy','star'],a=tg[Math.floor(rnd()*5)];let b=a;while(b==a)b=tg[Math.floor(rnd()*5)];
   D={stage:1,stT:0,cool:1.6,calm:0,n:0,hist:[],tags:[],fav:[a,b],ms:null,msId:0,msHist:[],brk:0,sup:0,adapt:0,fT:7,
-     gT:26+rnd()*6,sT:24+rnd()*8,cT:17+rnd()*8,oT:48+rnd()*14,bsT:92+rnd()*30,railAt:85+rnd()*20,trainDone:0,
+     gT:26+rnd()*6,sT:24+rnd()*8,cT:17+rnd()*8,oT:48+rnd()*14,bsT:92+rnd()*30,railAt:85+rnd()*20,trainDone:0,cyS:6+Math.floor(rnd()*3),boS:7+Math.floor(rnd()*3),
      bn:{t:2.6,T:2.6,s:'STAGE 1',sub:'',w:0}};
 }
 // heat: 0 for the first ~20 s, then +1 about every 48 s; clean flying pushes it up a little, low health eases it off
@@ -2065,12 +2050,6 @@ const ENC=[
  {id:'striker',tag:'heavy',minT:120,w:1,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.8,'minion2',W/2-120,100,{am:25,fq:.55,ph:0}),U(.8,'minion2',W/2+120,100,{am:25,fq:.55,ph:0})]}},
  {id:'squads2',tag:'squad',minT:130,w:2,ok:()=>!hasT('wing'),make(){const n=3;return[X(0,n*1.1,()=>squad(150,n)),X(1.4,n*1.1,()=>squad(W-150,n))]}},
  {id:'helis',tag:'heavy',minT:85,w:1.5,make(){return[U(0,'heli',130,120,{am:22,fq:.45,ph:0}),U(.6,'heli',W-130,120,{am:22,fq:.45,ph:Math.PI}),U(1.4,'minion2',W/2,95,{am:30,fq:.5,ph:0})]}},
- {id:'lancer',tag:'elite',el:1,minT:150,w:1.6,ok:()=>!hasT('lancer'),make(){return[U(0,'lancer',W/2,125,{am:70,fq:.3,ph:0}),U(.8,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(.8,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
- {id:'phantom',tag:'elite',el:1,minT:175,w:1.5,ok:()=>!hasT('phantom'),make(){return[U(0,'phantom',W/2,140,{}),U(.8,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(.8,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
- {id:'cyclone',tag:'elite',el:1,minT:200,w:1.3,ok:()=>!hasT('cyclone'),make(){return[U(0,'cyclone',W/2,150,{am:45,fq:.25,ph:0})]}},
- {id:'bomber',tag:'elite',el:1,minT:230,w:1.3,ok:()=>!hasT('bomber'),make(){return[U(0,'bomber',W/2,130,{am:55,fq:.22,ph:0})]}},
- {id:'elite2',tag:'elite',el:1,minT:280,w:1.1,ok:()=>!hasT('lancer')&&!hasT('phantom'),make(){return[U(0,'lancer',125,125,{am:45,fq:.3,ph:0}),U(1,'phantom',W-125,150,{})]}},
- {id:'storm',tag:'elite',el:1,minT:340,w:.9,ok:()=>!hasT('cyclone')&&!hasT('lancer'),make(){return[U(0,'cyclone',W/2,150,{am:40,fq:.25,ph:0}),U(2,'lancer',W-110,110,{am:40,fq:.3,ph:Math.PI})]}},
  {id:'ace',tag:'heavy',minT:200,w:1.2,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2,150,{am:50,fq:.6}),U(.6,'trio',120,125,{am:35,fq:.6,ph:0}),U(1.1,'trio',W-120,125,{am:35,fq:.6,ph:Math.PI})]}}
 ];
 // ----- milestones: each stage ends with one of these -----
@@ -2088,9 +2067,8 @@ const MS=[
  {id:'train',big:1,name:'ARMORED TRAIN',minS:2,w:3,ok:()=>railS!==null&&mt>=D.railAt+20&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
  {id:'aces',name:'ACE PILOTS',minS:3,w:1.5,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2-110,150,{am:40,fq:.6}),U(1.5,'striker',W/2+110,170,{am:40,fq:.6}),U(2.5,'minion2',W/2,100,{am:30,fq:.5,ph:0})]}},
  {id:'elite',name:'ELITE WING',minS:3,w:1.5,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI}),U(1.5,'minion2',W/2-60,95,{am:25,fq:.5,ph:0}),U(1.5,'minion2',W/2+60,95,{am:25,fq:.5,ph:Math.PI}),U(2.5,'minion2',W/2,170,{am:25,fq:.5,ph:0})]}},
- {id:'bomberrun',el:1,name:'HEAVY BOMBER',minS:4,w:2.4,ok:()=>!hasT('bomber'),make(){return[U(0,'bomber',W/2,125,{am:55,fq:.22,ph:0}),U(2.5,'phantom',W/2-120,160,{}),U(4.5,'phantom',W/2+120,160,{})]}},
- {id:'aceflight',el:1,name:'ELITE FLIGHT',minS:4,w:2.2,ok:()=>!hasT('lancer')&&!hasT('phantom'),make(){return[U(0,'lancer',W/2-120,115,{am:45,fq:.3,ph:0}),U(1.2,'lancer',W/2+120,115,{am:45,fq:.3,ph:Math.PI}),U(2.5,'phantom',W/2,160,{})]}},
- {id:'maelstrom',big:1,name:'MAELSTROM',minS:5,w:2.2,ok:()=>!hasT('cyclone'),make(){return[U(0,'cyclone',W/2,140,{am:50,fq:.22,ph:0}),U(4,'lancer',110,115,{am:40,fq:.3,ph:0}),U(5.5,'lancer',W-110,115,{am:40,fq:.3,ph:Math.PI})]}},
+ {id:'bomberrun',big:1,el:1,name:'HEAVY BOMBER',minS:6,w:2.4,ok:()=>!hasT('bomber')&&!hasT('cyclone')&&D.stage>=(D.boS||8)&&rnd()<.55,make(){return[U(0,'bomber',W/2,125,{am:55,fq:.22,ph:0}),U(2.5,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(2.5,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
+ {id:'maelstrom',big:1,el:1,name:'CYCLONE',minS:6,w:2.4,ok:()=>!hasT('cyclone')&&!hasT('bomber')&&D.stage>=(D.cyS||7)&&rnd()<.55,make(){return[U(0,'cyclone',W/2,140,{am:50,fq:.22,ph:0}),U(2.5,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(2.5,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
  {id:'armada',big:1,name:'ARMADA',minS:4,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(7,10,()=>sea('battle')),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
 ];
 const stLen=()=>D.dr?8:Math.min(110,50+D.stage*10);   // drone rounds are short
@@ -2307,17 +2285,17 @@ function mission(){
       if(ty=='scout'){
         if(Math.abs(e.x-e.tx)<10)e.tx=60+rnd()*(W-120);
         e.x+=Math.sign(e.tx-e.x)*Math.min(115,Math.abs(e.tx-e.x)*2.5)*DT;
-      }else if(ty=='striker'||ty=='phantom'){   // loosely tracks you and dodges your bullets (the phantom is quicker and wider)
-        const ph=ty=='phantom';let tx=p.x+Math.sin(e.age*(ph?1.3:.9)+e.ph)*(ph?120:90),sv=ph?175:130;
+      }else if(ty=='striker'){   // loosely tracks you and dodges your bullets
+        let tx=p.x+Math.sin(e.age*.9+e.ph)*90,sv=130;
         for(const b of bul)if(b.o==0&&b.y>e.y&&b.y-e.y<280&&Math.abs(b.x-e.x)<32){tx=e.x+(e.x<b.x?-1:1)*(ph?105:80);sv=ph?300:210;if(tx<50||tx>W-50)tx=e.x+(tx<e.x?80:-80)}
         e.x+=Math.sign(tx-e.x)*Math.min(sv,Math.abs(tx-e.x)*3)*DT;
-      }else{const m={minion:[.5,60],minion2:[.65,80],heli:[.5,85],chinook:[.4,60],trio:[.6,100],dread:[.45,70],lancer:[.3,60],cyclone:[.25,50],bomber:[.22,55]}[ty];e.x=e.x0+Math.sin(e.age*(e.fq===undefined?m[0]:e.fq)+e.ph)*(e.am===undefined?m[1]:e.am)+(e.ex||0)}
+      }else{const m={minion:[.5,60],minion2:[.65,80],heli:[.5,85],chinook:[.4,60],trio:[.6,100],dread:[.45,70],cyclone:[.25,50],bomber:[.22,55]}[ty];e.x=e.x0+Math.sin(e.age*(e.fq===undefined?m[0]:e.fq)+e.ph)*(e.am===undefined?m[1]:e.am)+(e.ex||0)}
       for(const o of en)if(o!==e&&!o.gnd&&Math.abs(o.x-e.x)<56&&Math.abs(o.y-e.y)<56)e.x+=(e.x<o.x?-1:1)*70*DT;
       if(Math.abs(e.ex||0)<30)e.x=Math.max(34,Math.min(W-34,e.x));
      }
     }
-    if(ty=='lancer'||ty=='cyclone')eliteStep(e,p);
-    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='radar'&&ty!='kamikaze'&&ty!='lancer'&&ty!='cyclone'){
+    if(ty=='cyclone')eliteStep(e,p);
+    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='radar'&&ty!='kamikaze'&&ty!='cyclone'){
       e.cd-=DT;
       if(e.cd<=0&&e.y>25&&e.y<H-12&&e.x>-10&&e.x<W+10&&p.alive&&(ty!='wing'||e.y<H*.62))(ty=='scout'||ty=='striker'?fireE:fireN)(e,p);
     }
