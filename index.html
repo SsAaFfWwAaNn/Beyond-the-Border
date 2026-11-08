@@ -1338,8 +1338,7 @@ function fireN(e,p){
   else if(t=='carrier'){let k=0;while(k<4&&e.gh&&e.gh[e.n]<=0){e.n=(e.n+1)%4;k++}if(k>=4){e.cd=1.2;return}   // skip guns that were shot off; with none left it only launches strikers
     const m=CM[e.n];shot(e,Math.atan2(p.y-(e.y+m[1]),p.x-(e.x+m[0])),205,8,m[0],m[1]);e.n=(e.n+1)%4;e.cd=e.n%2?.3:1.9}   // carrier: bow pair fires left-right, then the stern pair
   else if(t=='bomber'){   // carpet: three slow rows of bombs across the wing with one open lane; the wing guns add two aimed shots
-    if(!e.n)e.gp=Math.floor(rnd()*6);
-    for(let i=0;i<8;i++){if(i==e.gp||i==e.gp+1)continue;shot(e,D,150,8,(i-3.5)*25,14)}
+    for(let i=0;i<8;i++)shot(e,D,150,8,(i-3.5)*25,14)
     if(e.n==1){shot(e,a,215,9,-40,6);shot(e,a,215,9,40,6)}
     e.n=(e.n+1)%3;e.cd=e.n?.55:3.3}
   else if(t=='trainC'){const k=e.tier||0;shot(e,a,200+k*8,8+(k>1?1:0),0,0);if(k>=2)shot(e,a+.14,200+k*8,8,0,0);if(k>=4)shot(e,a-.14,200+k*8,8,0,0);e.cd=Math.max(1.2,2.6+rnd()*.8-k*.3)}   // cart guns: aimed, more barrels as the train is upgraded
@@ -1988,7 +1987,7 @@ Object.assign(WDEF,{plane:[90,90,wPlane],heli:[116,116,wHeli],chook:[130,150,wCh
 // Ground, sea and cargo run on their own lanes. Each stage ends in a milestone set piece, then a breather with a supply drop.
 const COST={cyclone:6.5,bomber:7.5,chinook:5.5,minion:1.1,minion2:1.7,scout:1.5,wing:1.1,heli:3,striker:3.2,trio:3.8,dread:9,kamikaze:.8,a10:2,starfield:5};
 const SYB={cyclone:140,bomber:125,chinook:115,minion:105,minion2:125,heli:120,scout:110,striker:150,trio:130,dread:100};
-const STAY={cyclone:[26,8],bomber:[32,8],minion:[8,6],minion2:[9,6],scout:[9,5],heli:[18,8],chinook:[26,8],trio:[18,8],striker:[16,8]};   // [base, random extra] seconds a free fighter stays before it flies off (set-piece enemies never leave)
+const STAY={minion:[8,6],minion2:[9,6],scout:[9,5],heli:[18,8],chinook:[26,8],trio:[18,8],striker:[16,8]};   // [base, random extra] seconds a free fighter stays before it flies off (set-piece enemies never leave)
 let D={stage:1,bn:null},dq=[],lastHit=-99;
 const hasT=t=>en.some(e=>e.ty==t&&!e.dead);
 const L=(n,f)=>Array.from({length:n},(_,i)=>f(i));
@@ -2130,7 +2129,7 @@ function startMilestone(){
   if(m.id=='radar'){D.bn={t:3.4,T:3.4,s:'RADAR STATIONS',sub:'DESTROY '+D.rdN+' STATIONS',w:1};SFX.alarm()}
   if(m.id=='convoy'){D.bn={t:3.8,T:3.8,s:'PROTECT THE CARGO',sub:'SAFE +3000  ·  LOST -3000',w:1};SFX.alarm()}
   D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
-  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0};
+  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0,bs:m.id=='maelstrom'||m.id=='bomberrun'?1:0};
   if(m.id=='train'||m.id=='carrier')dq=dq.filter(q=>q.ms);   // drop delayed escorts from earlier formations so they don't pile onto the boss fight
   launch(items,D.ms.id);D.cool=3.5;
 }
@@ -2189,7 +2188,7 @@ function directorStep(){
   D.calm=ld<cap*(.4+.045*h)?D.calm+DT:0;D.cool-=DT;
   if(D.ms){
     D.ms.t+=DT;const id=D.ms.id,alive=dq.some(q=>q.ms===id)||en.some(e=>e.ms===id)||!!(cgo&&cgo.ms===id&&(!cgo.fin||cgo.ft<(cgo.dead?5.5:3)));
-    if((!alive&&D.ms.t>2)||D.ms.t>(D.ms.cv?300:90)){
+    if((!alive&&D.ms.t>2)||D.ms.t>(D.ms.cv?300:D.ms.bs?600:90)){
       const full=D.ms.n>0&&D.ms.k>=D.ms.n,lost=D.cgoLost,b=(alive||lost)?0:Math.round(D.ms.bonus*(full?1.5:1));
       for(const e of en)if(e.ms===id)e.ms=0;
       pts+=b;D.cgoLost=0;if(!lost)D.bn={t:3.2,T:3.2,s:'STAGE CLEAR',sub:b?'+'+b+(full?'  PERFECT':''):'',w:2};
