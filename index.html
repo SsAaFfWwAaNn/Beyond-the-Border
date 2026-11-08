@@ -957,15 +957,15 @@ function oilField(){   // two or three oil rigs sit in the gulf; blowing one up 
   for(let i=0;i<n;i++){const wy=scroll+50+i*105,ratio=Math.max(.25,Math.min(.75,r0+(rnd()-.5)*.3));
     en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:100,mhp:100,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
 }
-function blast(e){   // drone explosion: area damage to you and a little to anything flying close by (other drones are not set off)
+function blast(e,direct){   // drone explosion: only a direct hit hurts you; a shot-down drone harms no one and barely scratches anything near it
   cgoBlast(e);SFX.blast(e.x);const p=P[0],R=80;rings.push({x:e.x,y:e.y,t:0});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
-  for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<R)hurt(p,Math.round(28*(1-d/R*.5)),p.x,p.y)}
-  for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<R-10){o.hp-=22;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
+  if(direct)for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<e.r+16+4)hurt(p,Math.round(28*(1-Math.min(d,R)/R*.5)),p.x,p.y)}
+  for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<45){o.hp-=6;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
 let lastKP='';
 function kamikaze(nn){   // suicide drones arrive in a randomly chosen pattern (never the same one twice in a row); every pattern keeps them well spread out
   const n=nn||(1+(mt>110?1:0)+(mt>180?1:0)),cl=x=>Math.max(40,Math.min(W-40,x));
-  const mk=(x,y,o)=>Object.assign({ty:'kamikaze',x,y,ang:Math.PI/2,spd:130,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0},o);
+  const mk=(x,y,o)=>Object.assign({ty:'kamikaze',x,y,ang:Math.PI/2,spd:130,age:0,cd:0,hp:1,mhp:1,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0},o);
   let pool;
   if(n<2)pool=[['line',3],['side',2.2]];
   else{pool=[['line',2],['stream',2.2],['rain',2],['side',1.8]];
@@ -1000,7 +1000,7 @@ function kamikaze(nn){   // suicide drones arrive in a randomly chosen pattern (
   }
 }
 function droneRand(nn){   // random drone burst: every drone picks its own edge (top or either side), its own spot and its own delay; no fixed pattern
-  const n=nn||1,wts=[['top',3],['left',2],['right',2]],mk=(x,y,o)=>Object.assign({ty:'kamikaze',x,y,ang:Math.PI/2,spd:120+rnd()*40,age:0,cd:0,hp:12,mhp:12,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0,aim:1},o);
+  const n=nn||1,wts=[['top',3],['left',2],['right',2]],mk=(x,y,o)=>Object.assign({ty:'kamikaze',x,y,ang:Math.PI/2,spd:120+rnd()*40,age:0,cd:0,hp:1,mhp:1,r:14,pts:150,rc:0,ph:rnd()*6.28,n:0,alt:0,aim:1},o);
   const pick=()=>{let r=rnd()*wts.reduce((t,q)=>t+q[1],0);for(const q of wts){r-=q[1];if(r<=0)return q[0]}return'top'};
   const clump=n>1&&rnd()<.35,ce=pick(),cp=rnd();   // sometimes a few come out of the same spot
   for(let i=0;i<n;i++){
@@ -2179,7 +2179,7 @@ function mission(){
         break;
       }
       if(!e.dead&&p.alive&&(p.cg?Math.abs(e.x-p.x)<cgo.hw+e.r&&Math.abs(e.y-p.y)<cgo.hh+e.r:Math.hypot(e.x-p.x,e.y-p.y)<e.r+16)){
-        e.dead=1;blast(e);
+        e.dead=1;blast(e,1);
       }
       if(e.y>H+70||(e.y<-120&&e.age>5)||e.x<-80||e.x>W+80)e.dead=1;   // drones queued above the screen are not culled while they fly in
     }else if(ty=='starfield'){
