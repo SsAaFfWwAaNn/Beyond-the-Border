@@ -777,7 +777,7 @@ function killGun(e,j){const bx=e.x+CM[j][0],by=e.y+CM[j][1];e.gh[j]=0;pts+=200;S
   pop(bx,by-22,e.gh.every(v=>v<=0)?'ALL GUNS DOWN +200':'DECK GUN +200')}
 const cSlotX=j=>j%2?11:-13,cSlotY=(j,n)=>-CL+38+(n-1-j)*28;   // parking slots on the flight deck (jet 0 is nearest the bow and launches first)
 // ---- carrier hit testing: real hull outline, deck guns and parked strikers are separate targets ----
-function cHull(e,x,y){const dy=y-e.y;if(dy<-CL-2||dy>CL+14)return false;return Math.abs(x-e.x)<Math.min(CW,CW*(CL+14-dy)/44)+2}   // follows the drawn hull: straight sides, tapered bow
+function cHullHit(e,x,y){const dy=y-e.y;if(dy<-CL-2||dy>CL+14)return false;return Math.abs(x-e.x)<Math.min(CW,CW*(CL+14-dy)/44)+2}   // follows the drawn hull: straight sides, tapered bow
 function parkAt(e,j,x,y){const dx=x-(e.x+cSlotX(j)),dy=y-(e.y+cSlotY(j,e.nl));return(Math.abs(dx)<9&&Math.abs(dy)<22)||(Math.abs(dx)<19&&Math.abs(dy-1)<9)}   // fuselage + wing span of a parked striker
 function cComp(e,x,y,hs){   // what sits on the deck at this point: a gun, or the nearest parked striker
   if(e.gh)for(let j=0;j<4;j++)if(e.gh[j]>0&&!(hs&&hs.includes(e.uid+'g'+j))&&Math.hypot(x-(e.x+CM[j][0]),y-(e.y+CM[j][1]))<13)return{t:'g',j};
@@ -785,7 +785,7 @@ function cComp(e,x,y,hs){   // what sits on the deck at this point: a gun, or th
   return bj>=0?{t:'p',j:bj}:null}
 function carrierHit(e,b,hs){   // sweeps the bullet's path this frame so fast shots never skip a target
   const x0=b.px==null?b.x:b.px,y0=b.py==null?b.y:b.py,dx=b.x-x0,dy=b.y-y0,n=Math.max(1,Math.ceil(Math.hypot(dx,dy)/3));let inH=false;
-  for(let i=1;i<=n;i++){const x=x0+dx*i/n,y=y0+dy*i/n,c=cComp(e,x,y,hs);if(c)return c;if(cHull(e,x,y))inH=true}
+  for(let i=1;i<=n;i++){const x=x0+dx*i/n,y=y0+dy*i/n,c=cComp(e,x,y,hs);if(c)return c;if(cHullHit(e,x,y))inH=true}
   if(!inH)return null;
   // guns and parked jets stand on top of the hull: a shot whose lane still has one ahead flies over the hull to reach it
   const sp=Math.hypot(b.vx,b.vy)||1,ux=b.vx/sp,uy=b.vy/sp;
@@ -926,7 +926,7 @@ function drawEnemy(e){
   const x=ix(e,'x'),y=ix(e,'y'),t=e.ty;
   if(t=='heli')heliJet(x,y,e);
   else if(t=='chinook')chinookJet(x,y,e);
-  else if(e.tr)trainSeg(x,y,e);else if(t=='oil')oilRig(x,y,e);else if(t=='kamikaze')droneJet(x,y,e);else if(e.sea)(t=='battle'||t=='carrier'?bigShip:seaJet)(x,y,e);else if(e.gnd)gndJet(x,y,e);else if(t=='starfield')starJet(x,y,e);else foeJet(x,y,e);
+  else if(e.tr)trainSeg(x,y,e);else if(t=='oil')oilRig(x,y,e);else if(t=='radar')radarDish(x,y,e);else if(t=='kamikaze')droneJet(x,y,e);else if(e.sea)(t=='battle'||t=='carrier'?bigShip:seaJet)(x,y,e);else if(e.gnd)gndJet(x,y,e);else if(t=='starfield')starJet(x,y,e);else foeJet(x,y,e);
 }
 
 // ---------- spawning: a few hovering minions form the core, passing events and ground units add variety ----------
@@ -1006,7 +1006,7 @@ function droneRand(nn){   // random drone burst: every drone picks its own edge 
   for(let i=0;i<n;i++){
     const ed=clump?ce:pick(),u=clump?Math.max(0,Math.min(1,cp+(rnd()-.5)*.14)):rnd();
     if(ed=='top')en.push(mk(40+u*(W-80),-40-rnd()*30,{hold:rnd()*.9}));
-    else{const d=ed=='left'?1:-1;en.push(mk(d>0?-30:W+30,40+u*H*.62,{d,ang:d>0?0:Math.PI,warn:.7+rnd()*.5}))}
+    else{const d=ed=='left'?1:-1;en.push(mk(d>0?-30:W+30,40+u*H*.38,{d,ang:d>0?0:Math.PI,warn:.7+rnd()*.5}))}
   }
 }
 // ---------- rare event: PROTECT THE CARGO ----------
@@ -1230,6 +1230,7 @@ function killE(e){
   if(e.ty=='trainB')ammoBlast(e);
   if(e.ms&&D.ms&&e.ms===D.ms.id)D.ms.k++;
   if(e.ty=='cargo'){pop(e.x,e.y-26,'CARGO +'+e.pts);cargoLoot(e)}
+  if(e.ty=='radar'){D.rdK=(D.rdK||0)+1;pop(e.x,e.y-26,'RADAR '+D.rdK+'/'+(D.rdN||D.rdK)+' +'+e.pts)}
   if(e.oil){   // oil rig explodes: area damage now, then the slick burns for a while
     const R=115,q=P[0];fires.push({x:e.x,wy:e.wy,t:0,life:14,tk:0});pop(e.x,e.y-30,'OIL RIG +'+e.pts);
     for(let i=0;i<4;i++)burst(e.x+(rnd()-.5)*50,e.y+(rnd()-.5)*50,C.ember,18);
@@ -1340,6 +1341,33 @@ function drawFires(){
         ctx.fillStyle='rgba(242,207,138,'+.8*k+')';ctx.beginPath();ctx.arc(x+ox*.8,y+oy*.8-1,s*.5,0,6.28);ctx.fill()}}
   }
 }
+function radarSite(sd){   // an enemy radar station on the desert coast: a stationary target that scrolls past
+  const wy=scroll+50,ratio=.4+rnd()*.35;if(sd===undefined)sd=railS!==null?1:(rnd()<.5?1:0);
+  en.push({ty:'radar',gnd:1,wy,ratio,sd,x:gndX(wy,ratio,sd),y:-50,age:0,cd:99,hp:70,mhp:70,r:22,pts:300,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0});
+}
+function radarItems(){   // 6-11 radar stations spread over the stage, a few fighters keep the player busy meanwhile
+  const n=6+Math.floor(rnd()*6),it=[];let t=0,sd=rnd()<.5?1:0;D.rdN=n;D.rdK=0;
+  for(let i=0;i<n;i++){if(rnd()<.7)sd=1-sd;const q=sd;it.push(X(t,.5,()=>radarSite(q)));t+=1.7+rnd()*1.3}
+  it.push(U(3.5,'minion2',W/2-110,105,{am:25,fq:.5,ph:0}),U(3.5,'minion2',W/2+110,105,{am:25,fq:.5,ph:Math.PI}));
+  if(n>=8)it.push(U(t*.55,'minion2',W/2,110,{am:40,fq:.5,ph:0}),X(t*.6,1.2,()=>kamikaze(2)));
+  if(n>=10)it.push(U(t*.8,'trio',W/2,125,{am:40,fq:.6,ph:0}));
+  return it;
+}
+function radarDish(x,y,e){   // top-down radar station: concrete pad, control hut, slowly turning dish
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='rgba(20,18,16,.25)';ctx.fillRect(-18,-14,44,44);
+  ctx.fillStyle='#6d717a';ctx.fillRect(-22,-22,44,44);ctx.strokeStyle='rgba(236,217,208,.4)';ctx.lineWidth=1;ctx.strokeRect(-22,-22,44,44);
+  ctx.fillStyle='#4a4f58';ctx.fillRect(-19,8,15,12);ctx.fillRect(7,10,11,9);
+  ctx.save();ctx.translate(0,-3);ctx.rotate(e.age*.9+e.ph);
+  ctx.fillStyle='rgba(20,18,16,.25)';ctx.beginPath();ctx.ellipse(3,4,15,6,0,0,6.28);ctx.fill();
+  ctx.strokeStyle='#22272d';ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(-17,0);ctx.lineTo(17,0);ctx.stroke();
+  ctx.fillStyle='#c9ccd1';ctx.beginPath();ctx.ellipse(0,0,16,6.5,0,0,6.28);ctx.fill();ctx.strokeStyle='#4a4f58';ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle='#8a8f98';ctx.beginPath();ctx.ellipse(-2,0,9,3.2,0,0,6.28);ctx.fill();
+  ctx.fillStyle='#22272d';ctx.fillRect(-1.5,-1.5,3,3);
+  ctx.restore();
+  const on=Math.sin(e.age*5+e.ph)>0;ctx.fillStyle=on?'#ff6a55':'#5a2a2a';ctx.beginPath();ctx.arc(-15,-15,2.6,0,6.28);ctx.fill();
+  ctx.restore();
+}
 function oilRig(x,y,e){   // top-down offshore rig: deck, legs, tanks, derrick, flare stack
   ctx.save();ctx.translate(x,y);
   ctx.fillStyle='rgba(20,16,20,.3)';ctx.beginPath();ctx.ellipse(0,2,50,42,0,0,6.28);ctx.fill();
@@ -1444,7 +1472,7 @@ function wTrain(g,R,eng){   // gutted rail car / locomotive: torn roof, exposed 
   g.restore();
   wDebris(g,10,38,['#161112','#3d2c2e','#55403f','#2a2123'],R);
 }
-const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)],trainA:[80,100,(g,R)=>wTrain(g,R,0)],trainR:[80,100,(g,R)=>wTrain(g,R,0)],trainT:[80,100,(g,R)=>wTrain(g,R,0)],trainB:[80,100,(g,R)=>wTrain(g,R,0)]};
+const WDEF={tank:[90,90,wTank],truck:[90,90,wTruck],turret:[72,72,wTurret],radar:[72,72,wTurret],oil:[150,150,wRig],trainE:[80,110,(g,R)=>wTrain(g,R,1)],trainC:[80,100,(g,R)=>wTrain(g,R,0)],trainA:[80,100,(g,R)=>wTrain(g,R,0)],trainR:[80,100,(g,R)=>wTrain(g,R,0)],trainT:[80,100,(g,R)=>wTrain(g,R,0)],trainB:[80,100,(g,R)=>wTrain(g,R,0)]};
 function wSprite(k,v){const key=k+v,d=WDEF[k];return WSP[key]||(WSP[key]=makeSprite(d[0],d[1],g=>d[2](g,rng(v*7919+key.length*104729+key.charCodeAt(0)*31))))}
 function wFlame(x,y,s,a){ctx.fillStyle='rgba(233,148,106,'+al(.75*a)+')';ctx.beginPath();ctx.arc(x,y,s,0,6.2832);ctx.fill();ctx.fillStyle='rgba(242,207,138,'+al(.85*a)+')';ctx.beginPath();ctx.arc(x,y-.5,s*.5,0,6.2832);ctx.fill()}
 const SK={boat:{Lb:24,Ls:16,Wd:9,dur:4.5,tau:2.5,list:.3,nf:2},ship:{Lb:54,Ls:43,Wd:15,dur:7,tau:3.5,list:.26,nf:3},battle:{Lb:88,Ls:74,Wd:17,dur:10,tau:5,list:.2,nf:4},carrier:{Lb:146,Ls:132,Wd:47,dur:14,tau:6,list:.1,nf:6}};
@@ -1961,6 +1989,7 @@ const MS=[
  {id:'stars',name:'STAR STORM',minS:2,w:2,ok:()=>!hasT('starfield'),make(){return starItems(Math.min(3,1+Math.floor(D.stage/2)))}},
  {id:'battle',name:'BATTLESHIP',minS:2,w:2,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,10,()=>sea('battle')),U(3,'minion2',W/2-110,110,{am:25,fq:.5,ph:0}),U(3,'minion2',W/2+110,110,{am:25,fq:.5,ph:Math.PI}),X(5,2.5,()=>sea('boat')),X(8,2.5,()=>sea('boat',95))]}},
  {id:'oil',name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
+ {id:'radar',name:'RADAR STATIONS',minS:2,w:2,ok:()=>!hasT('radar')&&!en.some(e=>e.tr),make:radarItems},   // destroy 6-11 enemy radar stations
  {id:'dread',name:'DREADNOUGHT',minS:3,w:3,ok:()=>!hasT('dread'),make(){return[U(0,'dread',W/2,100,{am:40,fq:.45,ph:0}),U(1.2,'minion2',W/2-135,150,{am:25,fq:.5,ph:0}),U(1.2,'minion2',W/2+135,150,{am:25,fq:.5,ph:0}),U(2.4,'minion',W/2-200,200,{am:15,fq:.5,ph:0}),U(2.4,'minion',W/2+200,200,{am:15,fq:.5,ph:0})]}},
  {id:'carrier',name:'AIRCRAFT CARRIER',minS:2,w:3,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,12,()=>sea('carrier'))]}},
  {id:'train',name:'ARMORED TRAIN',minS:2,w:3,ok:()=>railS!==null&&mt>=D.railAt+20&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
@@ -1968,7 +1997,7 @@ const MS=[
  {id:'elite',name:'ELITE WING',minS:3,w:1.5,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI}),U(1.5,'minion2',W/2-60,95,{am:25,fq:.5,ph:0}),U(1.5,'minion2',W/2+60,95,{am:25,fq:.5,ph:Math.PI}),U(2.5,'minion2',W/2,170,{am:25,fq:.5,ph:0})]}},
  {id:'armada',name:'ARMADA',minS:4,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(7,10,()=>sea('battle')),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
 ];
-const stLen=()=>Math.min(110,50+D.stage*10);
+const stLen=()=>D.dr?8:Math.min(110,50+D.stage*10);   // drone rounds are short
 function pickEnc(){
   if(bossA())return false;   // train / carrier fight: no extra formations, the player can focus on the boss
   const h=heat(),lim=capA()-loadA(),room=D.ms?lim*.55:lim,forced=D.n<3?['solo','twin','line3'][D.n]:null,cs=[];
@@ -1996,23 +2025,24 @@ function pickEnc(){
 function droneRound(){   // drone swarm round: after the warning, drones keep arriving back to back from random edges, with random gaps, never waiting for the last one to die
   if(D.ms||D.brk>0||D.cool>0||bossA())return;
   D.dT=(D.dT||0)-DT;if(D.dT>0)return;
-  const live=en.filter(e=>e.ty=='kamikaze'&&!e.dead).length,mx=Math.min(15,6+D.stage);
+  const live=en.filter(e=>e.ty=='kamikaze'&&!e.dead).length,mx=Math.min(8,4+Math.floor(D.stage/3));
   if(live>=mx){D.dT=.4;return}
-  const n=Math.min(mx-live,rnd()<.55?1:rnd()<.6?2:3+(D.stage>=6?1:0));
+  const n=Math.min(mx-live,rnd()<.7?1:2);
   droneRand(n);D.n++;
-  D.dT=Math.max(.35,(.4+rnd()*1.5)*Math.max(.45,1-D.stage*.05));   // short, uneven gaps; they tighten as the stages go on
+  D.dT=Math.max(.9,(1.1+rnd()*1.7)*Math.max(.7,1-D.stage*.03));   // short, uneven gaps; they tighten as the stages go on
 }
 function startMilestone(){
   const c=MS.filter(m=>D.stage>=m.minS&&(!m.ok||m.ok()));
   if(!c.length){D.stT-=8;return}
   let m=null;
-  if(D.dr)m={id:'dstorm',name:'DRONE STORM',make(){const k=Math.min(6,4+Math.floor(D.stage/2)),it=[];let t=0;for(let i=0;i<14+k;i++){it.push(X(t,.8,()=>droneRand(1+(rnd()<.4?1:0)+(rnd()<.2?1:0))));t+=.3+rnd()*1.1}return it}};   // drone round finale
+  if(D.dr)m={id:'dstorm',name:'DRONE STORM',make(){const k=Math.min(6,4+Math.floor(D.stage/2)),it=[];let t=0;for(let i=0;i<Math.round((14+k)*.45);i++){it.push(X(t,.8,()=>droneRand(1+(rnd()<.3?1:0))));t+=.8+rnd()*1.4}return it}};   // drone round finale
   else if(D.stage>=3&&!D.trainDone)m=c.find(x=>x.id=='train')||null;   // the train always shows up by stage 3
   else if(D.trainDone&&D.stage>=(D.trainSt||0)+4)m=c.find(x=>x.id=='train')||null;   // and a stronger one comes back at least every 4 stages after that
   if(!m)m=wpick(c.map(x=>({m:x,w:x.w*(D.msHist.includes(x.id)?.15:1)}))).m;
   let items=m.make(),name=m.name;
   if(D.stage>=6&&!D.dr&&m.id!='convoy'){const c2=(m.id=='train'||m.id=='carrier')?[]:c.filter(x=>x!==m&&!(m.sea&&x.sea)&&x.id!='train'&&x.id!='carrier'&&x.id!='convoy');if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
   if(m.id=='dstorm'||m.id=='swarm'){items=items.map(i=>({...i,d:(i.d||0)+3.2}));D.bn={t:3.2,T:3.2,s:'WARNING',sub:'DRONE SWARM INBOUND',w:1};SFX.alarm()}   // warn first, then the swarm
+  if(m.id=='radar'){D.bn={t:3.4,T:3.4,s:'RADAR STATIONS',sub:'DESTROY '+D.rdN+' STATIONS',w:1};SFX.alarm()}
   if(m.id=='convoy'){D.bn={t:3.8,T:3.8,s:'PROTECT THE CARGO',sub:'SAFE +3000  ·  LOST -3000',w:1};SFX.alarm()}
   D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
   D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0};
@@ -2186,7 +2216,7 @@ function mission(){
       if(Math.abs(e.ex||0)<30)e.x=Math.max(34,Math.min(W-34,e.x));
      }
     }
-    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='kamikaze'){
+    if(ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='radar'&&ty!='kamikaze'){
       e.cd-=DT;
       if(e.cd<=0&&e.y>25&&e.y<H-12&&e.x>-10&&e.x<W+10&&p.alive&&(ty!='wing'||e.y<H*.62))(ty=='scout'||ty=='striker'?fireE:fireN)(e,p);
     }
