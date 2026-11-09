@@ -925,7 +925,7 @@ function trainSeg(x,y,e){   // engine + gun carts running up the track beside yo
     return}
   const p=T(e),r=e.rot||0,eng=e.ty=='trainE',cy=eng?10:0,aim=(p&&p.alive?Math.atan2(p.y-y,p.x-x):Math.PI/2)-r,sc=e.sc||1;
   ctx.save();ctx.translate(x,y);ctx.rotate(r);ctx.scale(sc,sc);ctx.lineCap='round';
-  if(e.tier>=4){ctx.strokeStyle='rgba(233,148,106,.7)';ctx.lineWidth=2;ctx.strokeRect(-11,-25,22,50)}   // armour plating on late trains (kept inside the car so it never looks bigger)
+  if(e.tier>=3){ctx.strokeStyle='rgba(233,148,106,.7)';ctx.lineWidth=2;ctx.strokeRect(-11,-25,22,50)}   // armour plating on late trains (kept inside the car so it never looks bigger)
   ctx.fillStyle='rgba(20,18,16,.22)';ctx.fillRect(-9,-24,28,56);
   ctx.fillStyle='#181213';ctx.fillRect(-15,-22,4,14);ctx.fillRect(11,-22,4,14);ctx.fillRect(-15,8,4,14);ctx.fillRect(11,8,4,14);
   if(eng){
@@ -1265,12 +1265,12 @@ function starfield(slot,n){   // star plane glides in toward a spot near the cen
 const TRAIN_K={trainE:{hp:130,pts:600},trainC:{hp:70,pts:300},trainA:{hp:70*2.3,pts:420},trainR:{hp:70*.9,pts:360},trainT:{hp:70*1.15,pts:380},trainB:{hp:70*.75,pts:250},trainF:{hp:70*.8,pts:340},trainM:{hp:70*1.4,pts:400}};   // base hit points / points per kind of car
 function spawnTrain(){SFX.horn('train');   // appears from behind, runs up the track beside you, then keeps pace and stays until destroyed
   const lv=D.trainN||0;D.trainN=lv+1;D.trainSt=D.stage;   // the first train is the plain one; every later train is stronger, longer, and mixes in new kinds of car
-  const tier=Math.min(5,lv),stK=1+Math.max(0,D.stage-2)*.08,sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
-  const kinds=['trainC'];if(tier>=1)kinds.push('trainF');if(tier>=2)kinds.push('trainA','trainR');if(tier>=3)kinds.push('trainT','trainB');if(tier>=4)kinds.push('trainM');   // armoured shell cart + rocket-fan cart from the 2nd train on, twin-gun + exploding ammo cart after that
+  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(tt0,lv+1)),stK=1+Math.max(0,D.stage-2)*.12,sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
+  const kinds=['trainC'];if(tier>=2)kinds.push('trainA','trainR','trainF');if(tier>=3)kinds.push('trainT','trainB');if(tier>=4)kinds.push('trainM');   // armoured shell cart + rocket-fan cart from the 2nd train on, twin-gun + exploding ammo cart after that
   let last='',deck=[];
   for(let i=0;i<=n;i++){const eng=i==0;let ty='trainE';
     if(!eng){if(kinds.length>1){if(!deck.length)deck=shuf(kinds.slice());ty=deck.pop();if(ty==last&&deck.length)deck.unshift(ty),ty=deck.pop();last=ty}else ty='trainC'}
-    const K=TRAIN_K[ty],wy=wy0-i*gap,hp=Math.round(K.hp*(1+tier*.2)*(ty=='trainA'?stK:1));   // only the armoured carts toughen smoothly with every stage past 2 (+12% per stage); normal carts keep their health
+    const K=TRAIN_K[ty],wy=wy0-i*gap,hp=Math.round(K.hp*(1+tier*.4)*(ty=='trainA'?stK:1));   // only the armoured carts toughen smoothly with every stage past 2 (+12% per stage); normal carts keep their health
     en.push({ty,gnd:1,tr:1,tier,sc,wy,x:railX(wy),y:H+70+i*gap,rot:0,age:0,cd:1+i*.55,hp,mhp:hp,r:(eng?23:21)*sc,pts:K.pts+tier*100,g,rc:0,ph:0,n:0,alt:0,vr:(i*7+Math.floor(rnd()*3))%3})}
 }
 function ammoBlast(e){   // an ammo cart cooks off: area damage to you and to the cars around it
@@ -1347,14 +1347,14 @@ function fireN(e,p){
     for(let i=0;i<8;i++)shot(e,D,150,8,(i-3.5)*25,14)
     if(e.n==1){shot(e,a,215,9,-40,6);shot(e,a,215,9,40,6)}
     e.n=(e.n+1)%3;e.cd=e.n?.55:3.3}
-  else if(t=='trainC'){const k=e.tier||0;shot(e,a,200+k*5,8+(k>2?1:0),0,0);if(k>=3)shot(e,a+.14,200+k*5,8,0,0);if(k>=5)shot(e,a-.14,200+k*5,8,0,0);e.cd=Math.max(1.5,2.6+rnd()*.8-k*.2)}   // cart guns: aimed, more barrels as the train is upgraded
-  else if(t=='trainA'){const k=e.tier||0;shot(e,a,150+k*4,11,0,0);e.cd=3.1+rnd()*.6}   // armoured cart: slow, heavy shell
-  else if(t=='trainR'){const k=e.tier||0,m=2+(k>=5?1:0);for(let i=-m;i<=m;i++)shot(e,a+i*.28,165+k*4,8,0,0);e.cd=3.3+rnd()*.6}   // rocket cart: a wide fan of shots
-  else if(t=='trainT'){const k=e.tier||0;shot(e,a-.04,210+k*4,8,-9,0);shot(e,a+.04,210+k*4,8,9,0);e.n=(e.n+1)%(k>=5?4:3);e.cd=e.n?.2:2.2}   // twin-gun cart: quick double bursts
-  else if(t=='trainF'){const k=e.tier||0;shot(e,a+(rnd()-.5)*.08,235+k*4,7,0,0);e.n=(e.n+1)%3;e.cd=e.n?.16:2.4}   // flak cart: fast aimed triple-tap
-  else if(t=='trainM'){const k=e.tier||0;shot(e,a+(e.n?.05:-.05),140+k*3,13,0,0);e.n=(e.n+1)%2;e.cd=e.n?.5:3.6}   // mortar cart: two slow heavy shells in a row
+  else if(t=='trainC'){const k=e.tier||0;shot(e,a,200+k*8,8+(k>1?1:0),0,0);if(k>=2)shot(e,a+.14,200+k*8,8,0,0);if(k>=4)shot(e,a-.14,200+k*8,8,0,0);e.cd=Math.max(1.2,2.6+rnd()*.8-k*.3)}   // cart guns: aimed, more barrels as the train is upgraded
+  else if(t=='trainA'){const k=e.tier||0;shot(e,a,150+k*6,11,0,0);e.cd=3.1+rnd()*.6}   // armoured cart: slow, heavy shell
+  else if(t=='trainR'){const k=e.tier||0,m=2+(k>=4?1:0);for(let i=-m;i<=m;i++)shot(e,a+i*.28,165+k*6,8,0,0);e.cd=3.3+rnd()*.6}   // rocket cart: a wide fan of shots
+  else if(t=='trainT'){const k=e.tier||0;shot(e,a-.04,210+k*6,8,-9,0);shot(e,a+.04,210+k*6,8,9,0);e.n=(e.n+1)%(k>=4?4:3);e.cd=e.n?.2:2.2}   // twin-gun cart: quick double bursts
+  else if(t=='trainF'){const k=e.tier||0;shot(e,a+(rnd()-.5)*.08,235+k*6,7,0,0);e.n=(e.n+1)%3;e.cd=e.n?.16:2.4}   // flak cart: fast aimed triple-tap
+  else if(t=='trainM'){const k=e.tier||0;shot(e,a+(e.n?.05:-.05),140+k*4,13,0,0);e.n=(e.n+1)%2;e.cd=e.n?.5:3.6}   // mortar cart: two slow heavy shells in a row
   else if(t=='trainB'){e.cd=99}   // ammo cart: no guns, just a bomb waiting to go off
-  else{const k=e.tier||0,m=1+(k>=2?1:0)+(k>=4?1:0);for(let i=-m;i<=m;i++)shot(e,a+i*.24,175+k*5,8+(k>3?1:0),0,0);e.cd=Math.max(2,3.2-k*.18)}   // engine: fan grows with upgrades
+  else{const k=e.tier||0,m=1+Math.min(2,Math.ceil(k/2));for(let i=-m;i<=m;i++)shot(e,a+i*.24,175+k*8,8+(k>2?1:0),0,0);e.cd=Math.max(1.8,3.2-k*.25)}   // engine: fan grows with upgrades
 }
 // Cargo loot: pure luck. Every cargo plane rolls the same flat odds: a rare gun (only once the jet is "due" for one), a health pack, or nothing.
 // "Due" is a randomised stage that is re-rolled every run and after every gun, so the 5-gun jet only shows up very late and never on a fixed schedule.
