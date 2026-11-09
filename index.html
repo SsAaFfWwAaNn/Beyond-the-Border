@@ -1265,7 +1265,7 @@ function starfield(slot,n){   // star plane glides in toward a spot near the cen
 const TRAIN_K={trainE:{hp:130,pts:600},trainC:{hp:70,pts:300},trainA:{hp:70*2.3,pts:420},trainR:{hp:70*.9,pts:360},trainT:{hp:70*1.15,pts:380},trainB:{hp:70*.75,pts:250},trainF:{hp:70*.8,pts:340},trainM:{hp:70*1.4,pts:400}};   // base hit points / points per kind of car
 function spawnTrain(){SFX.horn('train');   // appears from behind, runs up the track beside you, then keeps pace and stays until destroyed
   const lv=D.trainN||0;D.trainN=lv+1;D.trainSt=D.stage;   // the first train is the plain one; every later train is stronger, longer, and mixes in new kinds of car
-  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(tt0,lv+1)),stK=1+Math.max(0,D.stage-2)*.12,sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
+  const tt0=Math.max(0,Math.min(5,Math.floor((mt-200)/100))),tier=lv==0?0:Math.min(5,Math.max(Math.floor(tt0*.7),Math.ceil(lv*.75))),stK=1+Math.max(0,D.stage-2)*.12,sc=1,n=Math.min(6,3+Math.ceil(tier/2)),gap=58,wy0=scroll-(H+70),g={n:n+1,k:0,bonus:500+tier*150,label:'TRAIN DESTROYED'};
   const kinds=['trainC'];if(tier>=2)kinds.push('trainA','trainR','trainF');if(tier>=3)kinds.push('trainT','trainB');if(tier>=4)kinds.push('trainM');   // armoured shell cart + rocket-fan cart from the 2nd train on, twin-gun + exploding ammo cart after that
   let last='',deck=[];
   for(let i=0;i<=n;i++){const eng=i==0;let ty='trainE';
