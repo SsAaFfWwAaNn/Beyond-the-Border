@@ -529,13 +529,15 @@ cv.addEventListener('pointerdown',e=>{
   const c=pc[mode=='2p'?(q.y<H/2?1:0):0];
   if(mode=='2p'&&c.on&&c.id!==e.pointerId)return;             // each half takes one finger
   Object.assign(c,{x:q.x,y:q.y,lx:q.x,ly:q.y,dx:0,dy:0,fresh:true,on:true,id:e.pointerId,touch});
+  try{cv.setPointerCapture(e.pointerId)}catch(_){}            // keep receiving the mouse even when it leaves the canvas
 });
-cv.addEventListener('pointermove',e=>{
+addEventListener('pointermove',e=>{                           // window-level: tracking continues outside the game screen
   const c=pc.find(c=>c.on&&c.id===e.pointerId);if(!c)return;
+  if(e.pointerType==='mouse'&&e.buttons===0){c.on=false;return}   // button was released outside the window: stop steering
   const q=pcoord(e);c.dx+=(q.x-c.lx)*1.15;c.dy+=(q.y-c.ly)*1.15;c.lx=q.x;c.ly=q.y;c.x=q.x;c.y=q.y;
 });
 const pend=e=>{for(const c of pc)if(c.id===e.pointerId)c.on=false};
-addEventListener('pointerup',pend);addEventListener('pointercancel',pend);
+addEventListener('pointerup',pend);addEventListener('pointercancel',pend);cv.addEventListener('lostpointercapture',pend);
 document.getElementById('b0').onclick=()=>{document.getElementById('mlist').style.display='none';document.getElementById('msel').style.display=''};
 document.getElementById('b1').onclick=()=>start('cpu');
 document.getElementById('b2').onclick=()=>start('2p');
