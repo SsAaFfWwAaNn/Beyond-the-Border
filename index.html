@@ -657,6 +657,7 @@ const FM={
   a10:{body:sym([[0,-32],[2.6,-26],[4.2,-14],[5,-9],[36,-9],[36,0],[7,3],[7,14],[15,16],[16,30],[11,31],[9,22],[5,22],[4,32],[0,30]]),can:sym([[0,-26],[2,-20],[2.2,-12],[0,-10]]),nz:13,ny:31,fill:'#2f3a3f',cc:'#f2e3d0'}
 };
 FM.wing={...FM.scout,fill:'#5b3036'};
+FM.stuka={body:sym([[0,-28],[2.4,-21],[3.4,-8],[30,-6],[30,0],[4.6,4],[4.4,19],[11,23],[11,27],[0,25]]),can:sym([[0,-19],[1.8,-13],[2,-8],[0,-6]]),nz:0,ny:25,fill:'#5b5748',cc:'#e8d8c4'};   // dive bomber: plain, minimal silhouette
 FM.trio={body:sym([[0,-34],[2.6,-26],[5,-12],[8,-4],[30,6],[34,16],[22,15],[12,16],[10,26],[16,32],[16,35],[8,34],[5,28],[0,30]]),can:sym([[0,-26],[2.2,-18],[2.4,-10],[0,-8]]),nz:9,ny:34,fill:'#6a3b2a',cc:'#ffd27a'};
 FM.cargo={body:sym([[0,-36],[3.5,-33],[7,-24],[9,-14],[9,-2],[42,14],[43,19],[9,14],[9,24],[22,31],[23,35],[9,34],[8,37],[3,39],[0,37]]),can:sym([[0,-30],[2.4,-24],[2.6,-18],[0,-16]]),nz:5,ny:38,fill:'#5f6652',cc:'#e8d9a8'};
 FM.bomber={body:sym([[0,-48],[2.6,-42],[5,-30],[6.5,-18],[8,-10],[50,-4],[52,2],[50,8],[10,13],[10,26],[24,31],[25,36],[8,37],[5,44],[0,42]]),can:sym([[0,-38],[2.2,-31],[2.4,-24],[0,-22]]),nz:5,ny:43,fill:'#3b2a33',cc:'#ffd27a'};   // heavy bomber: broad wings, four engine pods (drawn on top)
@@ -1019,7 +1020,7 @@ function oilField(){   // two or three oil rigs sit in the gulf; blowing one up 
     en.push({ty:'oil',gnd:1,oil:1,wy,ratio,sd:2,x:gndX(wy,ratio,2),y:-50,age:0,cd:99,hp:100,mhp:100,r:27,pts:400,v:0,rc:0,ph:rnd()*6.28,n:0,alt:0})}
 }
 function blast(e,direct){   // drone explosion: only a direct hit hurts you; a shot-down drone harms no one and barely scratches anything near it
-  cgoBlast(e);SFX.blast(e.x);const p=P[0],R=80;rings.push(direct?{x:e.x,y:e.y,t:0}:{x:e.x,y:e.y,t:0,s:.55});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
+  cgoBlast(e);tcvBlast(e);SFX.blast(e.x);const p=P[0],R=80;rings.push(direct?{x:e.x,y:e.y,t:0}:{x:e.x,y:e.y,t:0,s:.55});burst(e.x,e.y,C.ember,30);burst(e.x,e.y,C.cream,12);
   if(direct)for(const p of P)if(p.alive){const d=Math.hypot(e.x-p.x,e.y-p.y);if(d<e.r+16+4)hurt(p,Math.round(28*(1-Math.min(d,R)/R*.5)),p.x,p.y)}
   for(const o of en)if(!o.dead&&o!==e&&!o.gnd&&o.ty!='kamikaze'&&Math.hypot(o.x-e.x,o.y-e.y)<45){o.hp-=6;burst(o.x,o.y,C.ember,6);if(o.hp<=0)killE(o)}
 }
@@ -1076,13 +1077,14 @@ function droneRand(nn){   // random drone burst: every drone picks its own edge 
 let cgo=null,cgoAl=[];
 const ENTER_T=9,CGO_HP=550,CGO_PTS=3000,CGO_SL=[[-84,22],[84,-6],[0,-158]],cgoP={x:0,y:0,alive:true,hp:999,cg:1,c:'#ecd9d0'};
 function cgoOn(){return !!(cgo&&cgo.hp>0&&!cgo.fin&&cgo.st<2)}
-function tgt(e){   // convoy enemies behave like normal ones but attack whatever is closest: you, the cargo ship or an escort
-  const b=T(e);if(!e.tc||!cgoOn())return b;
+function tgt(e){   // convoy enemies behave like normal ones but attack whatever is closest: you, the cargo ship, an escort or a convoy vehicle
+  const b=T(e);if(!e.tc)return b;const co1=cgoOn(),tc1=tcvOn();if(!co1&&!tc1)return b;
   let best=b,bd=b.alive?SQ(b.x-e.x)+SQ(b.y-e.y):1e18;
-  const c=cgo,dx=Math.max(0,Math.abs(e.x-c.x)-c.hw),dy=Math.max(0,Math.abs(e.y-c.y)-c.hh),dc=dx*dx+dy*dy;
-  if(dc<bd){bd=dc;best=cgoP}
-  for(const a of cgoAl)if(!a.dead){const d=SQ(a.x-e.x)+SQ(a.y-e.y);if(d<bd){bd=d;best=a}}
-  return best}   // enemies flagged tc only hunt the cargo while it is alive and the event is on
+  if(co1){const c=cgo,dx=Math.max(0,Math.abs(e.x-c.x)-c.hw),dy=Math.max(0,Math.abs(e.y-c.y)-c.hh),dc=dx*dx+dy*dy;
+    if(dc<bd){bd=dc;best=cgoP}
+    for(const a of cgoAl)if(!a.dead){const d=SQ(a.x-e.x)+SQ(a.y-e.y);if(d<bd){bd=d;best=a}}}
+  if(tc1)for(const v of tcv.v)if(v.alive&&!v.gone&&v.y>-30&&v.y<H+30){const d=SQ(v.x-e.x)+SQ(v.y-e.y);if(d<bd){bd=d;best=v}}
+  return best}   // enemies flagged tc only hunt the cargo / convoy while it is alive and the event is on
 function cgoStart(){
   const n=1+Math.floor(rnd()*3),slots=n==1?[rnd()<.5?0:1]:n==2?[0,1]:[0,1,2];
   cgo={x:W/2,y:-230,px:W/2,py:-230,wy:0,ratio:.42+rnd()*.16,hp:CGO_HP,mhp:CGO_HP,hw:27,hh:100,age:0,st:0,v:90,fin:0,ft:0,ph:rnd()*6.28,ms:D.ms?D.ms.id:0,flash:0,dead:0};
@@ -1158,6 +1160,163 @@ function cgoStep(){
     }else a.ang=-Math.PI/2;
   }
   if(c.st==2&&(c.y>H+230||(c.dead&&c.dt>8))){cgo=null;cgoAl=[]}
+}
+// ---------- event: ESCORT THE CONVOY ----------
+// 3-11 allied tanks and supply trucks (random mix) drift slowly into the screen from the top (like the cargo ship) and settle at random spots
+// along both desert coasts, scattered rather than in a column and kept in the lower half of the map, close to your jet. Enemy raiders hunt them. Tanks shoot back at nearby aircraft; trucks are unarmed.
+// Each vehicle that makes it: +300 (nobody lost: +1200 more). Each vehicle destroyed: -150 and it stays behind as rubble.
+// Everything is lost: CONVOY LOST (no stage bonus).
+let tcv=null;
+const TCV_HP={tank:150,truck:95},TCV_BOX={tank:[16,19],truck:[12,22]},TCV_PTS=300,TCV_LOSS=150,TCV_PERFECT=1200;
+function tcvOn(){return !!(tcv&&!tcv.fin)}
+function tcvLane(wy,sd,ra){   // smoothed strip of desert, so a vehicle follows the coast without wobbling; ra = how far across the strip it drives
+  if(sd==1){const r=(landR(wy-60)+landR(wy-30)+landR(wy)+landR(wy+30)+landR(wy+60))/5;return Math.min(W-24,r+(W-r)*ra)}
+  const l=(landL(wy-60)+landL(wy-30)+landL(wy)+landL(wy+30)+landL(wy+60))/5;return Math.max(24,l*ra)}
+function tcvPlan(){   // decided when the event is chosen, so the raiders can be placed over the right spots
+  const f=D.tcvForce||{},n=f.n||3+Math.floor(rnd()*9),ty=[],pos=[];
+  for(let i=0;i<n;i++)ty.push(rnd()<.5?'tank':'truck');
+  if(!ty.includes('tank'))ty[Math.floor(rnd()*n)]='tank';
+  if(!ty.includes('truck'))ty[ty[n-1]=='tank'?n-1:0]='truck';
+  let gap=56;
+  const rA=sd=>sd?.32+rnd()*.2:.55+rnd()*.25;   // across the strip: nearer the shore, i.e. nearer you
+  for(let i=0;i<n;i++){   // scatter: every vehicle gets its own side, lateral spot and height (lower half of the map); vehicles on the same side keep their distance
+    let c=null;
+    for(let a=0;a<400&&!c;a++){
+      if(a&&a%60==0)gap=Math.max(40,gap-4);
+      const sd=f.sd===undefined?(rnd()<.5?0:1):f.sd,y=270+rnd()*380,ra=rA(sd);
+      if(pos.every(p=>p.sd!=sd||Math.abs(p.y-y)>=gap))c={sd,y,ra};
+    }
+    if(!c){const sd=f.sd===undefined?(rnd()<.5?0:1):f.sd;c={sd,y:270+rnd()*380,ra:rA(sd)}}
+    pos.push(c);
+  }
+  const T=10+rnd()*2.5;   // slow, cargo-ship-like glide; on each side the lowest spot is reached first, so nobody drives through anybody
+  for(const sd of[0,1]){let t=rnd()*1.5,rk=0;for(const c of pos.filter(q=>q.sd==sd).sort((a,b)=>b.y-a.y)){c.d=t;c.T=T;c.sy=-60-rk*12;c.dd=rnd()*1.8;c.vr=Math.floor(rnd()*3);t+=1.3+rnd()*1.4;rk++}}
+  D.tcvPlan={ty,pos};D.tcSt=D.stage;D.tcvDone=1;return D.tcvPlan}
+function tcvStart(){
+  const pl=D.tcvPlan,n=pl.ty.length;
+  tcv={n,age:0,st:0,fin:0,ft:0,lost:0,lostN:0,ms:D.ms?D.ms.id:0,
+    v:pl.ty.map((ty,i)=>{const p=pl.pos[i],b=TCV_BOX[ty],h=TCV_HP[ty],x=tcvLane(scroll-p.sy,p.sd,p.ra);
+      return{i,ty,sd:p.sd,ra:p.ra,slot:p.y,d:p.d,T:p.T,sy:p.sy,dd:p.dd,x,y:p.sy,px:x,py:p.sy,hp:h,mhp:h,hw:b[0],hh:b[1],r:b[1]-2,alive:1,gone:0,hit:0,fl:0,cd:.8+i*.13,ang:-Math.PI/2,age:0,vr:p.vr,tz:0,off:0,dv:0,rot:0}})};
+}
+function tcvWaves(){   // back-to-back raids, spawned like the normal ones (anywhere across the screen); each enemy goes for whatever is closest: you or a convoy vehicle
+  const it=[],S=D.stage,k=14+Math.min(6,Math.floor(S/2));let t=10;
+  for(let i=0;i<k;i++){
+    const r=rnd();
+    if(r<.42){const n=2+(rnd()<.4?1:0);for(let j=0;j<n;j++)it.push({...U(t+j*.5,grade(),60+rnd()*(W-120),95+rnd()*150,{am:18+rnd()*25,fq:.4+rnd()*.2}),tc:1})}
+    else if(r<.8||S<3){const n=2+(rnd()<.45?1:0);it.push({...X(t,n*.8,()=>droneRand(n)),tc:1})}
+    else it.push({...U(t,'heli',70+rnd()*(W-140),110+rnd()*80,{am:20,fq:.45}),tc:1});
+    t+=2.8+rnd()*2;
+  }
+  const ns=2+(S>=4?1:0)+(S>=7?1:0);   // dive bombers, spread over the event
+  for(let i=0;i<ns;i++)it.push({...X(16+i*(k*3.8-16)/ns+rnd()*5,2.4,stukaSpawn),tc:1});
+  return it;
+}
+function stukaSpawn(){   // a dive bomber comes in from above for one of the convoy vehicles
+  if(!tcvOn())return;
+  const ids=[];tcv.v.forEach((v,i)=>{if(v.alive&&!v.gone&&v.y>40)ids.push(i)});if(!ids.length)return;
+  const i=ids[Math.floor(rnd()*ids.length)],v=tcv.v[i];
+  en.push({ty:'stuka',x:Math.max(40,Math.min(W-40,v.x+(rnd()-.5)*60)),y:-70,ti:i,st:0,t0:1.2,spd:90,ang:Math.PI/2,rot:Math.PI,bl:2,sg:0,pass:0,np:2+(rnd()<.4?1:0),dir:1,age:0,hp:40,mhp:40,r:20,pts:400,rc:0,ph:0,cd:0,n:0,alt:0});
+}
+function stukaBomb(b){   // a bomb comes down: blast radius hurts every convoy vehicle near it (and you, if you fly over it)
+  burst(b.x,b.y,C.ember,22);burst(b.x,b.y,C.cream,8);burst(b.x,b.y,C.ink,10);rings.push({x:b.x,y:b.y,t:0});SFX.boom(1,b.x);SHK=Math.max(SHK,4);
+  const R=52;
+  if(tcvOn())for(const v of tcv.v)if(v.alive&&!v.gone){const d=Math.hypot(b.x-v.x,b.y-v.y);if(d<R)tcvDmg(v,Math.round(45*(1-d/R*.6)))}
+  for(const q of P)if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<R*.8)hurt(q,12,q.x,q.y);
+}
+function tcvKill(v){
+  const c=tcv;if(!v.alive)return;v.alive=0;c.lostN++;
+  SFX.boom(1,v.x);burst(v.x,v.y,C.ember,24);burst(v.x,v.y,C.cream,8);burst(v.x,v.y,C.ink,12);rings.push({x:v.x,y:v.y,t:0});SHK=Math.max(SHK,5);
+  leaveWreck({gnd:1,ty:v.ty,wy:scroll-v.y,x:v.x,r:v.r});   // it stays behind as rubble, like any other ground vehicle
+  pts=Math.max(0,pts-TCV_LOSS);pop(v.x,v.y-26,'VEHICLE LOST -'+TCV_LOSS);
+  if(!c.fin&&!c.v.some(q=>q.alive)){
+    c.fin=1;c.lost=1;D.cgoLost=1;dq=dq.filter(q=>q.ms!==c.ms);   // no more raids: just clear out the ones already here
+    SFX.stinger('fail');SHK=Math.max(SHK,10);FLASH=Math.max(FLASH,.25);D.bn={t:4.2,T:4.2,s:'CONVOY LOST',sub:'ALL VEHICLES DESTROYED',w:1};
+  }
+}
+function tcvDmg(v,d){v.hp-=d;v.hit=.12;if(v.hp<=0)tcvKill(v)}
+function tcvHit(b){   // an enemy round passing through a vehicle
+  if(!tcvOn())return;
+  for(const v of tcv.v)if(v.alive&&!v.gone&&Math.abs(b.x-v.x)<v.hw&&Math.abs(b.y-v.y)<v.hh){b.dead=1;burst(b.x,b.y,C.ember,4);SFX.hitE(b.x,1);tcvDmg(v,b.d);return}
+}
+function tcvBlast(e){   // a drone aimed at the convoy blows up next to it
+  if(!e.tc||!tcvOn())return;const R=64;
+  for(const v of tcv.v)if(v.alive&&!v.gone){const d=Math.hypot(e.x-v.x,e.y-v.y);if(d<R)tcvDmg(v,Math.round(40*(1-d/R*.55)))}
+}
+function tcvStep(){
+  const c=tcv;if(!c)return;
+  c.age+=DT;if(c.fin)c.ft+=DT;
+  if(c.st==0&&c.v.every(v=>!v.alive||c.age>=v.d+v.T))c.st=1;   // everybody has arrived at their spot
+  for(const v of c.v){
+    v.px=v.x;v.py=v.y;
+    if(!v.alive||v.gone)continue;
+    v.age+=DT;v.fl=Math.max(0,v.fl-DT);v.hit=Math.max(0,v.hit-DT);
+    const u=Math.max(0,Math.min(1,(c.age-v.d)/v.T)),k=u*u*(3-2*u);   // each one glides in from below the screen at its own time and pace
+    if(c.fin&&!c.lost&&c.ft>v.dd){v.dv=Math.min(80,v.dv+30*DT);v.off+=v.dv*DT}   // checkpoint reached: they ease off and fall behind, one by one, off the bottom of the screen
+    const sw=u>=1&&!c.fin?Math.min(1,(c.age-v.d-v.T)/2)*Math.sin(v.age*.7+v.i*1.7)*5:0;   // slight drift around the spot
+    v.y=v.sy+(v.slot-v.sy)*k+v.off+sw;
+    const wy=scroll-v.y;v.x=tcvLane(wy,v.sd,v.ra);v.rot=Math.atan2(tcvLane(wy+10,v.sd,v.ra)-tcvLane(wy-10,v.sd,v.ra),20);
+    v.tz+=Math.max(.15,90*DT+(v.py-v.y));   // tread animation follows the ground speed
+    if(c.fin&&v.y>H+70){v.gone=1;continue}
+    if(v.ty=='tank'&&!c.fin){   // anti-air: the turret swings onto the nearest aircraft in range and fires
+      let tg=null,bd=1e9;
+      for(const e of en){if(e.dead||e.gnd||e.warn>0||e.hold>0||e.ty=='cargo'||e.y<8||e.y>H-10||e.x<0||e.x>W)continue;const d=(SQ(e.x-v.x)+SQ(e.y-v.y))*(e.ty=='kamikaze'?.4:1);if(d<bd&&d<330*330){bd=d;tg=e}}
+      v.cd-=DT;
+      if(tg){
+        const df=nrm(Math.atan2(tg.y-v.y,tg.x-v.x)-v.ang);v.ang+=Math.max(-7*DT,Math.min(7*DT,df));
+        if(v.cd<=0&&Math.abs(df)<.2){v.cd=.8+rnd()*.3;v.fl=.06;bul.push({x:v.x+Math.cos(v.ang)*24,y:v.y+Math.sin(v.ang)*24,vx:Math.cos(v.ang)*440,vy:Math.sin(v.ang)*440,o:0,d:5,tr:[],al:1})}
+      }else{const df=nrm(-Math.PI/2-v.ang);v.ang+=Math.max(-3*DT,Math.min(3*DT,df))}
+    }
+  }
+  // the verdict: every raider is gone and the vehicles have held for a while -> checkpoint reached
+  if(!c.fin&&c.st==1&&c.age>14&&!dq.some(q=>q.ms===c.ms)&&!en.some(e=>e.ms===c.ms&&!e.dead)){
+    c.fin=1;const s=c.v.filter(v=>v.alive).length,perfect=c.lostN==0,tot=s*TCV_PTS+(perfect?TCV_PERFECT:0);
+    pts+=tot;SFX.stage(1);D.bn={t:3.4,T:3.4,s:'CONVOY SAFE',sub:'+'+tot+(perfect?'  PERFECT':''),w:2};
+    for(const v of c.v)if(v.alive)pop(v.x,v.y-26,'+'+TCV_PTS);
+  }
+  if(c.fin&&(c.ft>24||(c.v.every(v=>!v.alive||v.gone)&&c.ft>(c.lost?2.5:1))))tcv=null;
+}
+function drawAllyVeh(v,x,y){   // same build as the enemy tanks and trucks (olive hull, dark tracks), with a small teal mark so you can tell them apart at a glance
+  const fl=v.hit>0;
+  ctx.save();ctx.translate(x,y);ctx.rotate(v.rot);ctx.lineCap='round';ctx.lineJoin='round';
+  if(v.ty=='tank'){
+    ctx.fillStyle='rgba(20,18,16,.22)';ctx.fillRect(-11,-14,26,36);
+    ctx.fillStyle='#1f1c1b';ctx.fillRect(-15,-18,7,36);ctx.fillRect(8,-18,7,36);
+    ctx.strokeStyle='rgba(120,112,104,.5)';ctx.lineWidth=1;ctx.beginPath();
+    for(let j=0;j<6;j++){const yy=-18+((v.tz+j*6)%36);ctx.moveTo(-15,yy);ctx.lineTo(-8,yy);ctx.moveTo(8,yy);ctx.lineTo(15,yy)}ctx.stroke();
+    ctx.fillStyle='#4b4f3f';ctx.fillRect(-9,-16,18,32);
+    ctx.strokeStyle='rgba(236,217,208,.3)';ctx.strokeRect(-9,-16,18,32);
+    ctx.fillStyle='#3fb7c4';ctx.fillRect(-9,-16,18,2);
+    if(fl){ctx.fillStyle='rgba(255,236,214,.45)';ctx.fillRect(-9,-16,18,32)}
+    ctx.save();ctx.rotate(v.ang+Math.PI/2-v.rot);
+    ctx.fillStyle='#232621';ctx.fillRect(-2.5,-26,5,22);
+    ctx.fillStyle='#3a3d31';ctx.beginPath();ctx.arc(0,0,9,0,6.28);ctx.fill();
+    ctx.fillStyle='#3fb7c4';ctx.beginPath();ctx.arc(0,0,2.4,0,6.28);ctx.fill();
+    if(v.fl>0){ctx.fillStyle='#ffd9a8';ctx.beginPath();ctx.arc(0,-29,3.6,0,6.28);ctx.fill()}
+    ctx.restore();
+  }else{
+    ctx.fillStyle='rgba(20,18,16,.22)';ctx.fillRect(-6,-18,22,42);
+    ctx.fillStyle='#231f1d';ctx.fillRect(-12,-18,4,38);ctx.fillRect(8,-18,4,38);
+    ctx.fillStyle='#4a3d33';ctx.fillRect(-9,-22,18,13);
+    ctx.fillStyle='#1c1414';ctx.fillRect(-6,-20,12,3);
+    ctx.fillStyle='#3fb7c4';ctx.fillRect(-1.5,-14,3,3);
+    if(v.vr==0){ctx.fillStyle='#62503f';ctx.fillRect(-9,-9,18,30);ctx.fillStyle='#e8c9a0';ctx.fillRect(-6,14,12,4)}   // plain bed with a cream marking, like the enemy truck
+    else if(v.vr==1){ctx.fillStyle='#5a5240';ctx.fillRect(-9,-9,18,30);ctx.strokeStyle='rgba(28,20,20,.45)';ctx.lineWidth=1;ctx.beginPath();for(let j=-5;j<=19;j+=6){ctx.moveTo(-9,j);ctx.lineTo(9,j)}ctx.stroke()}   // tarp-covered cargo
+    else{ctx.fillStyle='#4a3d33';ctx.fillRect(-9,-9,18,30);ctx.fillStyle='#8c6a3a';ctx.fillRect(-7,-7,14,11);ctx.fillStyle='#62503f';ctx.fillRect(-7,7,14,12);ctx.strokeStyle='rgba(20,16,12,.5)';ctx.strokeRect(-7,-7,14,11);ctx.strokeRect(-7,7,14,12)}   // open bed with crates
+    ctx.strokeStyle='rgba(236,217,208,.35)';ctx.lineWidth=1;ctx.strokeRect(-9,-22,18,43);
+    if(fl){ctx.fillStyle='rgba(255,236,214,.45)';ctx.fillRect(-9,-22,18,43)}
+  }
+  ctx.restore();
+  if(v.hp<v.mhp){ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(x-12,y-v.hh-12,24,3);ctx.fillStyle=v.hp<v.mhp*.35?C.brick:'#3fb7c4';ctx.fillRect(x-12,y-v.hh-12,24*Math.max(0,v.hp)/v.mhp,3)}
+  if(v.hp<v.mhp*.45)for(let j=0;j<2;j++){const q=(tt*.7+v.i*.31+j/2)%1;ctx.fillStyle='rgba(40,35,39,'+(.32*(1-q))+')';ctx.beginPath();ctx.arc(x+2+q*12,y-4-q*34,3+q*8,0,6.2832);ctx.fill()}   // wounded vehicles smoke
+}
+function drawTankConvoy(){
+  const c=tcv;if(!c)return;
+  const lx=o=>o.px===undefined?o.x:o.px+(o.x-o.px)*alpha,ly=o=>o.py===undefined?o.y:o.py+(o.y-o.py)*alpha;
+  for(const v of c.v){   // dust kicked up behind each vehicle (drawn under the hulls)
+    if(!v.alive||v.gone)continue;const x=lx(v),y=ly(v);if(y<-80||y>H+80)continue;const sn=Math.sin(v.rot),cs=Math.cos(v.rot);
+    for(let i=0;i<4;i++){const q=(tt*1.1+i/4+v.i*.13)%1,d=22+q*46;ctx.fillStyle='rgba(214,190,170,'+(.2*(1-q))+')';ctx.beginPath();ctx.arc(x-sn*d+(v.sd?-1:1)*q*10,y+cs*d,4+q*9,0,6.2832);ctx.fill()}
+  }
+  for(const v of c.v){if(!v.alive||v.gone)continue;const x=lx(v),y=ly(v);if(y<-60||y>H+60)continue;drawAllyVeh(v,x,y)}
 }
 function cHull(L,Wd,r){   // top-down ship outline: pointed bow at -L, squared stern at +L
   ctx.beginPath();ctx.moveTo(0,-L);ctx.quadraticCurveTo(Wd*.95,-L*.72,Wd,-L*.36);ctx.lineTo(Wd,L-r);ctx.quadraticCurveTo(Wd,L,Wd-r,L);ctx.lineTo(-Wd+r,L);ctx.quadraticCurveTo(-Wd,L,-Wd,L-r);ctx.lineTo(-Wd,-L*.36);ctx.quadraticCurveTo(-Wd*.95,-L*.72,0,-L);ctx.closePath();
@@ -1884,7 +2043,7 @@ function landWreck(k,x,y,rot,r,ne){   // leaves burnt wreckage in the world
 const pickM=a=>{const r=rnd();let t=0;for(const m of a){t+=m[1];if(r<=t)return m[0]}return a[a.length-1][0]};
 function startCrash(e){
   const t=e.ty,k=CRK[t]||CRD,ra=r=>r[0]+rnd()*(r[1]-r[0]),sgn=rnd()<.5?-1:1,fighter=!(t=='heli'||t=='chinook');
-  const mn=pickM(k.modes||FMODES),m=CSTYLE[mn],rot=!fighter?0:t=='starfield'?(e.ang||0):t=='a10'&&e.rot!==undefined?e.rot:Math.PI,T=ra(k.T)*m.T;
+  const mn=pickM(k.modes||FMODES),m=CSTYLE[mn],rot=!fighter?0:t=='starfield'?(e.ang||0):(t=='a10'||t=='stuka')&&e.rot!==undefined?e.rot:Math.PI,T=ra(k.T)*m.T;
   const sk=rnd()<m.sk?1:0,bm=sk&&rnd()<.4?(rnd()<.3?2:1):0;   // slides in (or not), and how many times it bounces first
   crashes.push({ty:t,w:k.w,mode:mn,x:e.x,y:e.y,px:e.x,py:e.y,vx:(rnd()-.5)*90+(t=='a10'?(e.d||0)*150:0),vy:ra(k.vy)*m.vy*(t=='a10'?.3:1),ac:m.ac,tw:sgn*ra(k.tw)*m.tw,z:1,vz:mn=='hspin'?.12:0,g:2/(T*T),
     rot,vr:sgn*(.4+rnd()*.8)*m.vr,ar:sgn*ra(k.ar)*m.ar,vm:t=='heli'?16:t=='chinook'?5:t=='cargo'?2.2:t=='bomber'?1.6:12,t:0,age:e.age||0,ph:e.ph||0,sc:1,nb:0,bt:(k.bt||0)*(m.btm===undefined?1:m.btm),
@@ -2119,7 +2278,7 @@ function hov(ty,x,sy,o){   // one hovering fighter in a formation slot (am/fq/ph
 function grade(){const r=rnd();return mt<45?'minion':mt<100?(r<.5?'minion':'minion2'):(r<.25?'minion':'minion2')}
 function starItems(n){const seq=n>1&&rnd()>=.5;return L(n,i=>seq?X(i*6.5,5,()=>starfield(0,1)):X(0,5,()=>starfield(i,n)))}
 function dirNew(){
-  cgo=null;cgoAl=[];
+  cgo=null;cgoAl=[];tcv=null;
   const tg=['form','squad','drone','heavy','star'],a=tg[Math.floor(rnd()*5)];let b=a;while(b==a)b=tg[Math.floor(rnd()*5)];
   D={stage:1,stT:0,cool:1.6,calm:0,n:0,hist:[],tags:[],fav:[a,b],ms:null,msId:0,msHist:[],brk:0,sup:0,adapt:0,fT:7,
      gT:26+rnd()*6,sT:24+rnd()*8,cT:17+rnd()*8,oT:48+rnd()*14,bsT:92+rnd()*30,railAt:85+rnd()*20,trainDone:0,cyS:6+Math.floor(rnd()*3),boS:7+Math.floor(rnd()*3),
@@ -2183,20 +2342,21 @@ const MS=[
  {id:'gunship',sp:1,name:'HELICOPTER GUNSHIP',minS:1,w:3,make(){const a=[U(0,'heli',W/2,125,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2-115,95,{am:22,fq:.5,ph:0}),U(.7,'minion2',W/2+115,95,{am:22,fq:.5,ph:0})];if(mt>100)a.push(U(1.4,'minion',W/2-185,150,{am:15,fq:.5,ph:0}),U(1.4,'minion',W/2+185,150,{am:15,fq:.5,ph:0}));return a}},
  {id:'twinsq',sp:1,name:'TWIN SQUADRONS',minS:2,w:2,ok:()=>!hasT('wing'),make(){return[X(0,4.4,()=>squad(150,4)),X(2.5,4.4,()=>squad(W-150,4)),X(7,5.5,()=>squad(W/2,5))]}},
  {id:'swarm',sp:1,name:'DRONE SWARM',minS:2,w:2,ok:()=>!hasT('kamikaze'),make(){const it=[];let t=0;for(let i=0,nb=7+Math.min(4,Math.floor(D.stage/2));i<nb;i++){const n=3+Math.floor(rnd()*3);it.push(X(t,n*.7,()=>droneRand(n)));t+=.9+rnd()*1.1}return it}},   // a real swarm: waves of 3-5 drones arriving every second or so
- {id:'convoy',big:1,name:'PROTECT THE CARGO',minS:3,w:3,ok:()=>!cgo&&D.stage>=(D.cgoSt||0)+4&&!en.some(e=>e.ty=='battle'||e.ty=='carrier'||e.tr),make(){D.cgoSt=D.stage;return[X(0,3,cgoStart)].concat(cgoWaves())}},   // rare: never twice within 5 stages
+ {id:'convoy',big:1,name:'PROTECT THE CARGO',minS:3,w:3,ok:()=>!cgo&&!tcv&&D.stage>=(D.cgoSt||0)+4&&!en.some(e=>e.ty=='battle'||e.ty=='carrier'||e.tr),make(){D.cgoSt=D.stage;return[X(0,3,cgoStart)].concat(cgoWaves())}},   // rare: never twice within 5 stages
  {id:'stars',name:'STAR STORM',minS:2,w:2,ok:()=>!hasT('starfield'),make(){return starItems(Math.min(3,1+Math.floor(D.stage/2)))}},
  {id:'oil',big:1,name:'OIL FIELD',minS:2,w:1.6,ok:()=>!hasT('oil')&&!hasT('carrier'),make(){return[X(0,4,oilField),X(3.5,2.5,()=>sea('boat')),X(5,2.4,()=>kamikaze(2)),X(7,2.5,()=>sea('boat',90))]}},
  {id:'radar',big:1,name:'RADAR STATIONS',minS:2,w:2,ok:()=>!hasT('radar')&&!en.some(e=>e.tr),make:radarItems},   // destroy 6-11 enemy radar stations
  {id:'dread',big:1,name:'DREADNOUGHT',minS:3,w:3,ok:()=>!hasT('dread'),make(){return[U(0,'dread',W/2,100,{am:40,fq:.45,ph:0}),U(1.2,'minion2',W/2-135,150,{am:25,fq:.5,ph:0}),U(1.2,'minion2',W/2+135,150,{am:25,fq:.5,ph:0}),U(2.4,'minion',W/2-200,200,{am:15,fq:.5,ph:0}),U(2.4,'minion',W/2+200,200,{am:15,fq:.5,ph:0})]}},
  {id:'carrier',big:1,name:'AIRCRAFT CARRIER',minS:2,w:3,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,12,()=>sea('carrier'))]}},
  {id:'train',big:1,name:'ARMORED TRAIN',minS:2,w:3,ok:()=>railS!==null&&mt>=D.railAt+20&&!en.some(e=>e.tr),make(){return[X(0,12,()=>{D.trainDone=1;spawnTrain()})]}},
+ {id:'tankconv',big:1,name:'ESCORT THE CONVOY',minS:2,w:3.5,ok:()=>!tcv&&!cgo&&D.stage>=(D.tcSt||0)+3&&!en.some(e=>e.ty=='battle'||e.ty=='carrier'||e.tr||e.ty=='oil'||e.ty=='radar'),make(){const pl=tcvPlan();return[X(0,3,tcvStart)].concat(tcvWaves())}},   // 3-11 allied tanks and trucks to protect
  {id:'aces',name:'ACE PILOTS',minS:3,w:1.5,ok:()=>!hasT('striker'),make(){return[U(0,'striker',W/2-110,150,{am:40,fq:.6}),U(1.5,'striker',W/2+110,170,{am:40,fq:.6}),U(2.5,'minion2',W/2,100,{am:30,fq:.5,ph:0})]}},
  {id:'elite',name:'ELITE WING',minS:3,w:1.5,make(){return[U(0,'trio',125,130,{am:40,fq:.6,ph:0}),U(.5,'trio',W-125,130,{am:40,fq:.6,ph:Math.PI}),U(1.5,'minion2',W/2-60,95,{am:25,fq:.5,ph:0}),U(1.5,'minion2',W/2+60,95,{am:25,fq:.5,ph:Math.PI}),U(2.5,'minion2',W/2,170,{am:25,fq:.5,ph:0})]}},
  {id:'bomberrun',big:1,el:1,name:'HEAVY BOMBER',minS:6,w:2.4,ok:()=>!hasT('bomber')&&!hasT('cyclone')&&D.stage>=(D.boS||8)&&rnd()<.55,make(){return[U(0,'bomber',W/2,125,{am:55,fq:.22,ph:0}),U(2.5,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(2.5,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
  {id:'maelstrom',big:1,el:1,name:'CYCLONE',minS:6,w:2.4,ok:()=>!hasT('cyclone')&&!hasT('bomber')&&D.stage>=(D.cyS||7)&&rnd()<.55,make(){return[U(0,'cyclone',W/2,140,{am:50,fq:.22,ph:0}),U(2.5,'minion2',W/2-130,95,{am:22,fq:.5,ph:0}),U(2.5,'minion2',W/2+130,95,{am:22,fq:.5,ph:Math.PI})]}},
  {id:'armada',big:1,name:'ARMADA',minS:7,w:1.5,sea:1,ok:()=>!en.some(e=>e.ty=='battle'||e.ty=='carrier'),make(){return[X(0,5,()=>sea('ship')),X(2,5,()=>sea('ship',100)),X(3.5,5,()=>sea('ship',60)),X(7,5,()=>sea('ship',140)),U(4,'scout',140,110),U(4.6,'scout',W-140,110)]}}
 ];
-const stLen=()=>D.dr?8:Math.min(110,50+D.stage*10);   // drone rounds are short
+const stLen=()=>D.dr?8:Math.min(85,38+D.stage*8);   // drone rounds are short
 function pickEnc(){
   if(bossA())return false;   // train / carrier fight: no extra formations, the player can focus on the boss
   const h=heat(),lim=capA()-loadA(),room=D.ms?lim*.55:lim,forced=D.n<3?['solo','twin','line3'][D.n]:null,cs=[];
@@ -2238,7 +2398,8 @@ function startMilestone(){
   let m=null;
   if(D.dr)m={id:'dstorm',name:'DRONE STORM',make(){const it=[];let t=0;for(let i=0,nb=8+Math.min(4,Math.floor(D.stage/3));i<nb;i++){const n=3+Math.floor(rnd()*3);it.push(X(t,n*.7,()=>droneRand(n)));t+=.9+rnd()*1.1}return it}};   // drone round finale
   else if(D.stage>=3&&!D.trainDone)m=c.find(x=>x.id=='train')||null;   // the train always shows up by stage 3
-  else if(D.trainDone&&D.stage>=(D.trainSt||0)+4)m=c.find(x=>x.id=='train')||null;   // and a stronger one comes back at least every 4 stages after that
+  else if(D.trainDone&&D.stage>=(D.trainSt||0)+4)m=c.find(x=>x.id=='train')||null;
+  else if(D.stage>=4&&!D.tcvDone)m=c.find(x=>x.id=='tankconv')||null;   // the tank convoy is guaranteed by stage 4   // and a stronger one comes back at least every 4 stages after that
   if(!m)m=wpick(c.map(x=>({m:x,w:x.w*(D.msHist.includes(x.id)?.15:1)*(D.stage>=5&&x.sp?.35:1)*(D.stage>=4&&x.el?1.8:1)}))).m;   // late stages end in elite fights, not in piles of small planes
   let items=m.make(),name=m.name;
   if(D.stage>=8&&!D.dr&&!m.big){const c2=c.filter(x=>x!==m&&!x.big&&x.el);   // overdrive only ever stacks elite fights
@@ -2246,9 +2407,10 @@ function startMilestone(){
    if(c2.length){const m2=wpick(c2.map(x=>({m:x,w:x.w}))).m;items=items.concat(m2.make().map(i=>({...i,d:(i.d||0)+5})));name+=' + '+m2.name}}   // overdrive: two at once
   if(m.id=='dstorm'||m.id=='swarm'){items=items.map(i=>({...i,d:(i.d||0)+3.2}));D.bn={t:3.2,T:3.2,s:'WARNING',sub:'DRONE SWARM INBOUND',w:1};SFX.alarm()}   // warn first, then the swarm
   if(m.id=='radar'){D.bn={t:3.4,T:3.4,s:'RADAR STATIONS',sub:'DESTROY '+D.rdN+' STATIONS',w:1};SFX.alarm()}
+  if(m.id=='tankconv'){D.bn={t:3.8,T:3.8,s:'ESCORT THE CONVOY',sub:D.tcvPlan.ty.length+' VEHICLES  ·  KEEP THEM ALIVE',w:1};SFX.alarm()}
   if(m.id=='convoy'){D.bn={t:3.8,T:3.8,s:'PROTECT THE CARGO',sub:'SAFE +3000  ·  LOST -3000',w:1};SFX.alarm()}
   D.msHist.push(m.id);if(D.msHist.length>2)D.msHist.shift();
-  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'?1:0,rd:m.id=='radar'?1:0,bs:m.id=='maelstrom'||m.id=='bomberrun'?1:0};
+  D.ms={id:++D.msId,t:0,k:0,n:0,bonus:400+150*D.stage,cv:m.id=='convoy'||m.id=='tankconv'?1:0,rd:m.id=='radar'?1:0,bs:m.id=='maelstrom'||m.id=='bomberrun'?1:0};
   if(m.id=='train'||m.id=='carrier')dq=dq.filter(q=>q.ms);   // drop delayed escorts from earlier formations so they don't pile onto the boss fight
   launch(items,D.ms.id);D.cool=3.5;
 }
@@ -2256,7 +2418,7 @@ function lanes(h){
   const lim=Math.min(3,1+Math.floor(h/2.5)),cnt=t=>en.filter(e=>e.ty==t&&!e.dead).length,ok=D.brk<=0&&!bossA()&&!D.dr;
   D.gT-=DT;if(D.gT<=0){   // desert lane: turrets, tanks, trucks (singles, sometimes a pair)
     const gc=en.filter(e=>e.gnd&&!e.tr&&!e.sea&&!e.oil).length;
-    if(ok&&mt>=24&&gc<lim){
+    if(ok&&mt>=24&&gc<lim&&!tcv){
       const o=['turret','turret'];if(mt>=34)o.push('tank','tank');if(mt>=55)o.push('truck');if(mt>=130)o.push('truck');
       let k=o[Math.floor(rnd()*o.length)];if(k=='truck'&&cnt('truck')>=1)k='tank';
       const sd=railS!==null?1:(rnd()<.5?1:0);ground(k,sd);
@@ -2306,7 +2468,7 @@ function directorStep(){
   const cap=capA(),ld=loadA();
   D.calm=ld<cap*(.4+.045*h)?D.calm+DT:0;D.cool-=DT;
   if(D.ms){
-    D.ms.t+=DT;const id=D.ms.id,alive=D.ms.rd?(dq.some(q=>q.ms===id&&q.it.rs)||en.some(e=>e.ms===id&&e.ty=='radar'&&!e.dead)):(dq.some(q=>q.ms===id)||en.some(e=>e.ms===id)||!!(cgo&&cgo.ms===id&&(!cgo.fin||cgo.ft<(cgo.dead?5.5:3))));   // radar event: over once every station is destroyed or has scrolled past
+    D.ms.t+=DT;const id=D.ms.id,alive=D.ms.rd?(dq.some(q=>q.ms===id&&q.it.rs)||en.some(e=>e.ms===id&&e.ty=='radar'&&!e.dead)):(dq.some(q=>q.ms===id)||en.some(e=>e.ms===id)||!!(cgo&&cgo.ms===id&&(!cgo.fin||cgo.ft<(cgo.dead?5.5:3)))||!!(tcv&&tcv.ms===id));   // radar event: over once every station is destroyed or has scrolled past
     if(D.ms.rd&&!alive)dq=dq.filter(q=>q.ms!==id);
     if((!alive&&D.ms.t>2)||D.ms.t>(D.ms.cv?300:D.ms.bs?600:90)){
       const full=D.ms.n>0&&D.ms.k>=D.ms.n,lost=D.cgoLost,b=(alive||lost)?0:Math.round(D.ms.bonus*(full?1.5:1));
@@ -2334,7 +2496,7 @@ function directorStep(){
 function mission(){
   mt+=DT;
   let p=P[0];
-  directorStep();cgoStep();
+  directorStep();cgoStep();tcvStep();
   const trAlive=en.some(e=>e.tr&&!e.brk&&!e.dead),tr=en.filter(e=>e.tr),tv=tr.length&&Math.min(...tr.map(e=>e.y))>170?118:90;   // train overtakes you, then keeps pace
   for(const e of en){try{   // one misbehaving enemy must never freeze the whole game: it is dropped and everything else carries on
     p=tgt(e);e.age+=DT;const ty=e.ty;   // cargo hunters go for the ship, not for you
@@ -2366,6 +2528,34 @@ function mission(){
       e.x+=e.d*205*DT;
       if(!e.fired&&p.alive&&Math.abs(p.x-e.x)<150&&e.x>20&&e.x<W-20){e.fired=1;shot({x:e.x+e.d*22,y:e.y-16},Math.atan2(p.y-e.y,p.x-e.x),290,10)}
       if(e.d>0?e.x>W+70:e.x<-70)e.dead=1;
+    }else if(ty=='stuka'){   // dive bomber: lines up above ONE convoy vehicle, screams down onto it strafing, drops two bombs, pulls up and comes round again (2-3 passes)
+      const cv=tcvOn()?tcv:null;let v=cv?cv.v[e.ti]:null;
+      if(!cv||!v||!v.alive||v.gone){   // that vehicle is gone: switch to the nearest one still alive, or leave
+        v=null;if(cv){let bd=1e9;cv.v.forEach((q,i)=>{if(q.alive&&!q.gone&&q.y>0){const d=SQ(q.x-e.x)+SQ(q.y-e.y);if(d<bd){bd=d;e.ti=i;v=q}}})}
+        if(!v){if(e.st==3||e.y<-60){e.dead=1;continue}if(e.st<2){e.st=2;e.pass=e.np;e.dir=e.x<W/2?-1:1}}
+      }
+      if(e.st==0){   // lining up: drifts down from the top edge (siren) while sliding over its target
+        e.ang=Math.PI/2;e.t0-=DT;e.y+=70*DT;e.x+=Math.max(-100*DT,Math.min(100*DT,v.x-e.x));
+        if(!e.snd){e.snd=1;SFX.dive(e.x)}
+        if(e.t0<=0){e.st=1;e.spd=120;e.bl=2;e.sg=0}
+      }else if(e.st==1){   // the dive: steers at the vehicle (limited turn rate), fires a stream of rounds, bombs at close range
+        e.spd=Math.min(210,e.spd+80*DT);
+        e.ang+=Math.max(-1.5*DT,Math.min(1.5*DT,nrm(Math.atan2(v.y-e.y,v.x-e.x)-e.ang)));
+        const d=Math.hypot(v.x-e.x,v.y-e.y),ca=Math.cos(e.ang),sa=Math.sin(e.ang);e.sg-=DT;
+        if(d<300&&d>60&&e.sg<=0){e.sg=.18;bul.push({x:e.x+ca*18,y:e.y+sa*18,vx:ca*270,vy:sa*270,o:2,d:3,tr:[],tc:1})}
+        if(e.bl>0&&d<(e.bl==2?175:115)&&e.y<v.y-20){e.bl--;SFX.eshot(e.x,'a10');bul.push({x:e.x,y:e.y+8,vx:ca*e.spd*.6+(rnd()-.5)*12,vy:sa*e.spd*.6,o:2,d:0,bm:1,bg:1,by:v.y+(rnd()-.5)*10,tr:[]})}
+        e.x+=ca*e.spd*DT;e.y+=sa*e.spd*DT;
+        if(d<60||e.y>v.y+10){e.st=2;e.dir=e.x<W/2?-1:1}   // close enough: pull up (towards the middle of the screen)
+      }else if(e.st==2){   // pull-up: swings round through the horizontal and climbs away
+        e.spd=Math.min(230,e.spd+70*DT);
+        if(Math.abs(nrm(-Math.PI/2-e.ang))<.12)e.ang=-Math.PI/2;else e.ang=nrm(e.ang+e.dir*2.2*DT);
+        e.x+=Math.cos(e.ang)*e.spd*DT;e.y+=Math.sin(e.ang)*e.spd*DT;
+        if(e.y<-90||e.x<-90||e.x>W+90){e.pass++;if(e.pass>=e.np||!v)e.dead=1;else{e.st=3;e.t0=1.6+rnd()*1.4;e.y=-120}}
+      }else{   // waiting off-screen for the next run
+        e.t0-=DT;
+        if(e.t0<=0&&v){e.x=Math.max(40,Math.min(W-40,v.x+(rnd()-.5)*60));e.y=-70;e.st=0;e.t0=1.2;e.snd=0}
+      }
+      e.rot=e.ang+Math.PI/2;
     }else if(ty=='wing'){
       e.x=Math.max(30,Math.min(W-30,e.g.gx+Math.sin(e.age*.5+e.g.ph)*18+e.ox));e.y=-60+e.age*100+e.oy;
       if(e.y>H+60)e.dead=1;
@@ -2427,7 +2617,7 @@ function mission(){
      }
     }
     if(ty=='cyclone')eliteStep(e,p);
-    if(!e.brk&&ty!='a10'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='radar'&&ty!='kamikaze'&&ty!='cyclone'){
+    if(!e.brk&&ty!='a10'&&ty!='stuka'&&ty!='cargo'&&ty!='starfield'&&ty!='oil'&&ty!='radar'&&ty!='kamikaze'&&ty!='cyclone'){
       e.cd-=DT;
       if(e.cd<=0&&e.y>25&&e.y<H-12&&e.x>-10&&e.x<W+10&&p.alive&&(ty!='wing'||e.y<H*.62))(ty=='scout'||ty=='striker'?fireE:fireN)(e,p);
     }
@@ -2462,7 +2652,8 @@ function step(){
   for(const b of bul){
     b.tr.push({x:b.x,y:b.y});if(b.tr.length>26)b.tr.shift();b.x+=b.vx*DT;b.y+=b.vy*DT;
     if(state=='play'){
-      if(b.o==2){for(const q of P)if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y);break}if(!b.dead)cgoHit(b)}
+      if(b.bm){if(b.y>=b.by){b.dead=1;stukaBomb(b)}}   // a bomb: no contact fuse, it goes off when it reaches the height of its target
+      else if(b.o==2){for(const q of P)if(q.alive&&Math.hypot(b.x-q.x,b.y-q.y)<16){b.dead=1;hurt(q,b.d,b.x,b.y);break}if(!b.dead)cgoHit(b);if(!b.dead)tcvHit(b)}
       else if(mode=='mission'){
         for(const e of en){if(e.dead||e.brk||e.warn>0)continue;let ct=null;const uid=e.uid||(e.uid=++UID),hs=b.pi?(b.hs||(b.hs=[])):null;   // piercing rounds remember what they already hit so each target is damaged once
           if(e.ty=='carrier'){ct=carrierHit(e,b,hs);if(!ct)continue}else if((hs&&hs.includes(uid))||!(e.hh?Math.abs(b.x-e.x)<e.hw&&Math.abs(b.y-e.y)<e.hh:Math.hypot(b.x-e.x,b.y-e.y)<e.r))continue;
@@ -2566,7 +2757,7 @@ function drawScene(){
   }
   drawWrecks();drawFires();drawCrashTrails();
   for(const e of en)if(e.gnd)dE(e);
-  drawConvoy();
+  drawConvoy();drawTankConvoy();
   for(const e of en)if(!e.gnd&&!(e.warn>0))dE(e);
   for(const e of en)if(!e.dead&&e.hp>0&&e.hp<e.mhp){const by=e.y+(e.ofy||0)-(e.hh?e.hh+8:e.gnd?30:44),bx=e.x+(e.ofx||0)-18;ctx.fillStyle='rgba(24,35,34,.65)';ctx.fillRect(bx,by,36,4);ctx.fillStyle=C.brick;ctx.fillRect(bx,by,36*e.hp/e.mhp,4)}
   drawCrashes();drawPickups();
@@ -2906,9 +3097,9 @@ function dc(o,m){if(o===null||typeof o!='object')return o;let c=m.get(o);if(c!==
   if(ArrayBuffer.isView(o)){c=o.slice();m.set(o,c);return c}
   if(Object.getPrototypeOf(o)!==Object.prototype)return o;   // canvases, paths and other non-plain objects are shared, not copied
   c={};m.set(o,c);for(const k in o)c[k]=k==='tr'&&Array.isArray(o[k])?o[k].slice():dc(o[k],m);return c}   // trail points are never edited, so copies can share them
-const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,lastKP,UID},new Map);
-function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,lastKP,UID}=dc(S,new Map))}
-function restoreRaw(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,lastKP,UID}=S)}   // S is thrown away and replaced by a new snapshot at the end of the replay, so it can be used directly
+const snap=()=>dc({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,tcv,lastKP,UID},new Map);
+function restore(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,tcv,lastKP,UID}=dc(S,new Map))}
+function restoreRaw(S){({seed,tt,scroll,pts,mt,sp,timer,state,rb,score,P,bul,en,queue,dq,D,lastHit,railS,RB,fires,rings,pickups,wrecks,wid,pops,crashes,cgo,cgoAl,tcv,lastKP,UID}=S)}   // S is thrown away and replaced by a new snapshot at the end of the replay, so it can be used directly
 function copred(t){   // partner's controls for a tick we haven't heard yet: a short, quickly fading continuation of their heading. Standing still stays exactly still, and a stop overshoots by only a few pixels instead of sliding back
   const R=co.R,o=1-co.me;if(R<0)return co.init[o];const a=co.rem[R],w=Math.min(R,3),b=co.rem[R-w]||a,k=Math.min(t-R,10);
   let vx=w?(a[0]-b[0])/w:0,vy=w?(a[1]-b[1])/w:0;const sp=Math.hypot(vx,vy);if(sp<.6){vx=vy=0}else if(sp>5){vx*=5/sp;vy*=5/sp}
